@@ -1,0 +1,22 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_action_variable
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+    enterActions:
+      - actionType: Add
+        variable:
+          name: Missing
+          type: Int
+          scope: Session
+        value: "1"
+
+edges: []

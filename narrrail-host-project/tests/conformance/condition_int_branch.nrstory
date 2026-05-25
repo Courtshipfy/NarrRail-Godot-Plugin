@@ -1,0 +1,73 @@
+meta:
+  schemaVersion: 1
+  storyId: condition_int_branch
+  entryNodeId: N_Start
+
+variables:
+  - name: Affinity
+    type: Int
+    scope: Session
+    defaultValue: "10"
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+
+  - nodeId: N_High
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: high
+
+  - nodeId: N_Low
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: low
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_High
+    priority: 0
+    condition:
+      logic: All
+      terms:
+        - variable:
+            name: Affinity
+            type: Int
+            scope: Session
+          operator: ">="
+          compareValue: "10"
+
+  - sourceNodeId: N_Start
+    targetNodeId: N_Low
+    priority: 1
+    condition:
+      logic: All
+      terms:
+        - variable:
+            name: Affinity
+            type: Int
+            scope: Session
+          operator: "<"
+          compareValue: "10"
+
+  - sourceNodeId: N_High
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Low
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

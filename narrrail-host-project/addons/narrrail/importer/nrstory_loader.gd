@@ -124,7 +124,7 @@ class _YamlParser:
 				var item_obj: Dictionary = {}
 				if rest.is_empty():
 					if _index < _lines.size() and _indent_of(_lines[_index]) > indent:
-						item_obj[key] = _parse_block(indent + 2)
+						item_obj[key] = _parse_block(indent + 4)
 					else:
 						item_obj[key] = {}
 				else:

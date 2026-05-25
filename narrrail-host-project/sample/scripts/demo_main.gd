@@ -22,6 +22,7 @@ func _ready() -> void:
 			"storyId": "demo",
 			"entryNodeId": "N_Start"
 		},
+		"variables": [],
 		"nodes": [
 			{
 				"nodeId": "N_Start",

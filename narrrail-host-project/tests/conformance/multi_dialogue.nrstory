@@ -1,0 +1,36 @@
+meta:
+  schemaVersion: 1
+  storyId: multi_dialogue
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: Narrator
+      lines:
+        - textKey: line_1
+        - textKey: line_2
+        - textKey: line_3
+    enterActions:
+      - actionType: EmitEvent
+        eventId: multi_enter
+    exitActions:
+      - actionType: EmitEvent
+        eventId: multi_exit
+
+  - nodeId: N_End
+    nodeType: End
+    enterActions:
+      - actionType: EmitEvent
+        eventId: multi_end
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

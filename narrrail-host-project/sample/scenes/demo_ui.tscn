@@ -34,6 +34,27 @@ theme_override_constants/margin_bottom = 20
 layout_mode = 2
 theme_override_constants/separation = 12
 
+[node name="StoryBar" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StoryOption" type="OptionButton" parent="Panel/Margin/VBox/StoryBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PathEdit" type="LineEdit" parent="Panel/Margin/VBox/StoryBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "res://sample/stories/demo.nrstory"
+
+[node name="LoadButton" type="Button" parent="Panel/Margin/VBox/StoryBar"]
+layout_mode = 2
+text = "Load"
+
+[node name="RefreshButton" type="Button" parent="Panel/Margin/VBox/StoryBar"]
+layout_mode = 2
+text = "Refresh"
+
 [node name="SpeakerLabel" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
 text = "Speaker: "

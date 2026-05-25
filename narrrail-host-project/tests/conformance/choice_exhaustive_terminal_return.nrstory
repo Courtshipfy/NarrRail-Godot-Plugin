@@ -1,0 +1,63 @@
+meta:
+  schemaVersion: 1
+  storyId: choice_exhaustive_terminal_return
+  entryNodeId: N_Choice
+
+variables: []
+
+nodes:
+  - nodeId: N_Choice
+    nodeType: Choice
+    choiceMode: ExhaustiveUntilComplete
+    choiceCompletionTargetNodeId: N_Complete
+    choices:
+      - textKey: A
+        targetNodeId: N_A
+      - textKey: B
+        targetNodeId: N_B
+
+  - nodeId: N_A
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: branch_a
+
+  - nodeId: N_B
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: branch_b
+
+  - nodeId: N_BranchEnd
+    nodeType: End
+
+  - nodeId: N_Complete
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: complete
+
+  - nodeId: N_FinalEnd
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_A
+    targetNodeId: N_BranchEnd
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_B
+    targetNodeId: N_BranchEnd
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Complete
+    targetNodeId: N_FinalEnd
+    priority: 0
+    condition:
+      logic: All
+      terms: []

@@ -1,0 +1,30 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_condition_variable
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms:
+        - variable:
+            name: Missing
+            type: Int
+            scope: Session
+          operator: ">="
+          compareValue: "1"

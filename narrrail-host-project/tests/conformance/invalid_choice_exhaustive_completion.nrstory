@@ -1,0 +1,20 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_choice_exhaustive_completion
+  entryNodeId: N_Choice
+
+variables: []
+
+nodes:
+  - nodeId: N_Choice
+    nodeType: Choice
+    choiceMode: ExhaustiveUntilComplete
+    choiceCompletionTargetNodeId: ""
+    choices:
+      - textKey: A
+        targetNodeId: N_A
+
+  - nodeId: N_A
+    nodeType: End
+
+edges: []

@@ -1,0 +1,47 @@
+meta:
+  schemaVersion: 1
+  storyId: jump_actions
+  entryNodeId: N_Start
+
+variables:
+  - name: Flag
+    type: Bool
+    scope: Session
+    defaultValue: "false"
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+
+  - nodeId: N_Jump
+    nodeType: Jump
+    jumpTargetNodeId: N_End
+    enterActions:
+      - actionType: Set
+        variable:
+          name: Flag
+          type: Bool
+          scope: Session
+        value: "true"
+      - actionType: EmitEvent
+        eventId: jump_enter
+    exitActions:
+      - actionType: EmitEvent
+        eventId: jump_exit
+
+  - nodeId: N_End
+    nodeType: End
+    enterActions:
+      - actionType: EmitEvent
+        eventId: jump_end
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_Jump
+    priority: 0
+    condition:
+      logic: All
+      terms: []

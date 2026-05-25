@@ -46,6 +46,32 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-dev-link.ps1 \
 2. 进入 `Project > Project Settings > Plugins`
 3. 找到 `narrrail` 插件并启用
 
+## 当前运行时支持范围
+
+当前插件可直接加载并运行简单 `.nrstory`：
+
+- 节点：`Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `End`
+- 变量：`Bool` / `Int` / `Float` / `String` 默认值初始化
+- 条件：`All` + `==` / `!=` / `>` / `>=` / `<` / `<=`
+- 动作：节点 `enterActions` / `exitActions` 中的 `Set` / `Add` / `Subtract` / `EmitEvent`
+- 运行时信号：`line_changed` / `choices_changed` / `ended` / `error_raised` / `variable_changed` / `event_emitted`
+
+尚未支持：`SetVariable` 节点、`EmitEvent` 节点、Save/Load。
+
+Headless conformance validation:
+
+```sh
+godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd
+```
+
+## 试运行自己的 `.nrstory`
+
+1. 把 `.nrstory` 文件放到 `narrrail-host-project/sample/stories/`
+2. 打开 `narrrail-host-project`
+3. 运行主场景 `sample/scenes/demo_ui.tscn`
+4. 在顶部下拉框选择脚本，或在路径输入框填写 `res://...` 路径
+5. 点击 `Load` 重新开始当前脚本；新增文件后点击 `Refresh`
+
 ## 相关文档
 
 - `Docs/SCRIPT_FORMAT.md` - `.nrstory` 格式规范

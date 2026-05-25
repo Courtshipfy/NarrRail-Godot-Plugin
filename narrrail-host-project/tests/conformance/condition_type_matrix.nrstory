@@ -1,0 +1,93 @@
+meta:
+  schemaVersion: 1
+  storyId: condition_type_matrix
+  entryNodeId: N_Start
+
+variables:
+  - name: Flag
+    type: Bool
+    scope: Session
+    defaultValue: "true"
+  - name: Ratio
+    type: Float
+    scope: Session
+    defaultValue: "0.75"
+  - name: Route
+    type: String
+    scope: Session
+    defaultValue: "beta"
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+
+  - nodeId: N_Bool
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: bool
+
+  - nodeId: N_Float
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: float
+
+  - nodeId: N_String
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: string
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_Bool
+    priority: 0
+    condition:
+      logic: All
+      terms:
+        - variable:
+            name: Flag
+            type: Bool
+            scope: Session
+          operator: ">"
+          compareValue: "false"
+
+  - sourceNodeId: N_Bool
+    targetNodeId: N_Float
+    priority: 0
+    condition:
+      logic: All
+      terms:
+        - variable:
+            name: Ratio
+            type: Float
+            scope: Session
+          operator: "<="
+          compareValue: "0.75"
+
+  - sourceNodeId: N_Float
+    targetNodeId: N_String
+    priority: 0
+    condition:
+      logic: All
+      terms:
+        - variable:
+            name: Route
+            type: String
+            scope: Session
+          operator: ">="
+          compareValue: "alpha"
+
+  - sourceNodeId: N_String
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

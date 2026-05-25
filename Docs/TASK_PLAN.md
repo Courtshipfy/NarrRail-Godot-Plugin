@@ -17,7 +17,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - Status: [~]
 - Goal: Define runtime data structures for nodes/edges/choices/variables/events.
 - DoD:
-  - [ ] Data model supports all required node types.
+  - [~] Data model supports all required node types.
   - [ ] Serialization/deserialization contract documented.
   - [ ] Unit tests cover core model constraints.
 
@@ -25,26 +25,26 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - Status: [~]
 - Goal: Implement Start/Next/Choose/Stop flow with deterministic transitions.
 - DoD:
-  - [ ] Supports linear dialogue and branching choice flow.
-  - [ ] Handles terminal states correctly.
+  - [x] Supports linear dialogue and branching choice flow.
+  - [x] Handles terminal states correctly.
   - [ ] Transition errors return actionable diagnostics.
-  - [ ] Tests cover happy path + invalid transition cases.
+  - [x] Tests cover happy path + invalid transition cases.
 
 ### NR-GD-001-03 Condition Evaluation
-- Status: [ ]
+- Status: [x]
 - Goal: Evaluate branch conditions against variable state.
 - DoD:
-  - [ ] Bool/Int/Float/String comparisons supported per spec.
-  - [ ] Invalid expressions produce clear errors.
-  - [ ] Tests cover condition truth table and edge cases.
+  - [x] Bool/Int/Float/String comparisons supported per spec.
+  - [x] Invalid expressions produce clear errors.
+  - [x] Tests cover condition truth table and edge cases and are run in Godot.
 
 ### NR-GD-001-04 Action Execution
-- Status: [ ]
+- Status: [x]
 - Goal: Execute node actions (set variable, emit event, jump behavior support if needed).
 - DoD:
-  - [ ] Variable mutation semantics match spec.
-  - [ ] Event emission order deterministic and testable.
-  - [ ] Tests cover multiple chained actions.
+  - [x] Variable mutation semantics match spec.
+  - [x] Event emission order deterministic and testable.
+  - [x] Tests cover multiple chained actions.
 
 ---
 
@@ -165,6 +165,11 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - 2026-05-25 - `NR-GD-002-02` - Done by: `agent` - Evidence: Added `addons/narrrail/importer/nrstory_import_plugin.gd` + `addons/narrrail/narrrail_story_resource.gd`; plugin registers `.nrstory` importer and creates imported `.res` resource.
 - 2026-05-25 - `NR-GD-003-01` - Done by: `agent` - Evidence: Session API exposed (`start`, `next`, `choose`, `get_state`) with signals (`line_changed`, `choices_changed`, `ended`, `error_raised`).
 - 2026-05-25 - `NR-GD-003-02` - Done by: `agent + user validation` - Evidence: Added visual sample scene `sample/scenes/demo_ui.tscn` and script `sample/scripts/demo_ui.gd`; user confirmed UI flow works.
+- 2026-05-25 - `NR-GD-001-03` - Done by: `agent` - Evidence: Added variable initialization, edge condition evaluation, and choice availability filtering in `narrrail_session.gd`; added Godot conformance fixtures/runner under `narrrail-host-project/tests/conformance/`; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
+- 2026-05-25 - `NR-GD-001-04` - Done by: `agent` - Evidence: Added `enterActions`/`exitActions` execution, variable mutation, `event_emitted`/`variable_changed` signals, event snapshots, and `Jump` node support in `narrrail_session.gd`; added conformance fixtures for action chains, jump action ordering, and invalid action variables; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
+- 2026-05-25 - `NR-GD-001-02` - Update by: `agent` - Evidence: Added `MultiDialogue` runtime progression (`lineIndex`, one `Next` per line, exit after final line) plus conformance fixtures for valid/invalid `MultiDialogue`; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
+- 2026-05-25 - `NR-GD-001-02` - Update by: `agent` - Evidence: Added `Choice.choiceMode=ExhaustiveUntilComplete` support with per-choice-node exhausted target tracking, hidden selected choices, and completion target transition; added valid/invalid conformance fixtures; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
+- 2026-05-25 - `NR-GD-001-02` - Fix by: `agent` - Evidence: Updated `ExhaustiveUntilComplete` to maintain a runtime return frame so branches that end at `End` or have no outgoing edge return to the source Choice until all options are exhausted; added `choice_exhaustive_terminal_return.nrstory`; verified `撫物語.nrstory` returns to the source Choice with 4 options remaining after the first branch; ran conformance with `[NarrRail][Conformance] PASS`.
 
 - YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
 

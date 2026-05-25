@@ -4,7 +4,7 @@ extends RefCounted
 static func validate_minimal(story: Dictionary) -> Dictionary:
 	var errors: Array[String] = []
 
-	for key in ["meta", "nodes", "edges"]:
+	for key in ["meta", "variables", "nodes", "edges"]:
 		if not story.has(key):
 			errors.append("Missing required root field: %s" % key)
 
@@ -12,8 +12,21 @@ static func validate_minimal(story: Dictionary) -> Dictionary:
 		return {"ok": false, "errors": errors}
 
 	var meta: Dictionary = story.get("meta", {})
+	if int(meta.get("schemaVersion", 0)) != 1:
+		errors.append("Unsupported meta.schemaVersion: %s" % String(meta.get("schemaVersion", "")))
 	if not meta.has("entryNodeId"):
 		errors.append("Missing meta.entryNodeId")
+
+	var variable_names: Dictionary = {}
+	for v in story.get("variables", []):
+		var var_name := String(v.get("name", ""))
+		if var_name.is_empty():
+			errors.append("Variable with empty name")
+			continue
+		if variable_names.has(var_name):
+			errors.append("Duplicate variable name: %s" % var_name)
+		else:
+			variable_names[var_name] = true
 
 	var node_ids: Dictionary = {}
 	for n in story.get("nodes", []):
@@ -41,4 +54,70 @@ static func validate_minimal(story: Dictionary) -> Dictionary:
 		if not node_ids.has(t):
 			errors.append("Edge target not found: %s" % t)
 
+	for n in story.get("nodes", []):
+		if String(n.get("nodeType", "")) != "Choice":
+			if String(n.get("nodeType", "")) == "MultiDialogue":
+				_validate_multi_dialogue(n, errors)
+			if String(n.get("nodeType", "")) == "Jump":
+				var jump_target := String(n.get("jumpTargetNodeId", ""))
+				var jump_node_id := String(n.get("nodeId", ""))
+				if jump_target.is_empty():
+					errors.append("Jump target is empty on node: %s" % jump_node_id)
+				elif not node_ids.has(jump_target):
+					errors.append("Jump target not found on node %s: %s" % [jump_node_id, jump_target])
+			_validate_node_actions(n, variable_names, errors)
+			continue
+		var source_node_id := String(n.get("nodeId", ""))
+		var choice_mode := String(n.get("choiceMode", "SinglePass"))
+		if choice_mode != "SinglePass" and choice_mode != "ExhaustiveUntilComplete":
+			errors.append("Unsupported choiceMode on node %s: %s" % [source_node_id, choice_mode])
+		if choice_mode == "ExhaustiveUntilComplete":
+			var completion_target := String(n.get("choiceCompletionTargetNodeId", ""))
+			if completion_target.is_empty():
+				errors.append("Exhaustive choice missing choiceCompletionTargetNodeId on node: %s" % source_node_id)
+			elif not node_ids.has(completion_target):
+				errors.append("Exhaustive choice completion target not found on node %s: %s" % [source_node_id, completion_target])
+		for c in n.get("choices", []):
+			var target := String(c.get("targetNodeId", ""))
+			if target.is_empty():
+				errors.append("Choice target is empty on node: %s" % source_node_id)
+				continue
+			if not node_ids.has(target):
+				errors.append("Choice target not found on node %s: %s" % [source_node_id, target])
+		_validate_node_actions(n, variable_names, errors)
+
 	return {"ok": errors.is_empty(), "errors": errors}
+
+static func _validate_multi_dialogue(node: Dictionary, errors: Array[String]) -> void:
+	var node_id := String(node.get("nodeId", ""))
+	var multi_dialogue: Dictionary = node.get("multiDialogue", {})
+	var lines: Array = multi_dialogue.get("lines", [])
+	if lines.is_empty():
+		errors.append("MultiDialogue node has no lines: %s" % node_id)
+		return
+	for i in range(lines.size()):
+		var line: Dictionary = lines[i]
+		if not line.has("textKey"):
+			errors.append("MultiDialogue line missing textKey on node %s at index %d" % [node_id, i])
+
+static func _validate_node_actions(node: Dictionary, variable_names: Dictionary, errors: Array[String]) -> void:
+	var node_id := String(node.get("nodeId", ""))
+	for field in ["enterActions", "exitActions"]:
+		for a in node.get(field, []):
+			var action: Dictionary = a
+			var action_type := String(action.get("actionType", ""))
+			match action_type:
+				"Set", "Add", "Subtract":
+					var variable: Dictionary = action.get("variable", {})
+					var name := String(variable.get("name", ""))
+					if name.is_empty():
+						errors.append("%s action has empty variable name on node: %s" % [action_type, node_id])
+					elif not variable_names.has(name):
+						errors.append("%s action variable not found on node %s: %s" % [action_type, node_id, name])
+					if not action.has("value"):
+						errors.append("%s action missing value on node: %s" % [action_type, node_id])
+				"EmitEvent":
+					if String(action.get("eventId", "")).is_empty():
+						errors.append("EmitEvent action missing eventId on node: %s" % node_id)
+				_:
+					errors.append("Unsupported actionType on node %s: %s" % [node_id, action_type])

@@ -2,8 +2,13 @@ extends Control
 
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
-const STORY_PATH := "res://sample/stories/demo.nrstory"
+const STORY_DIR := "res://sample/stories"
+const DEFAULT_STORY_PATH := "res://sample/stories/demo.nrstory"
 
+@onready var story_option: OptionButton = $Panel/Margin/VBox/StoryBar/StoryOption
+@onready var path_edit: LineEdit = $Panel/Margin/VBox/StoryBar/PathEdit
+@onready var load_button: Button = $Panel/Margin/VBox/StoryBar/LoadButton
+@onready var refresh_button: Button = $Panel/Margin/VBox/StoryBar/RefreshButton
 @onready var speaker_label: Label = $Panel/Margin/VBox/SpeakerLabel
 @onready var text_label: Label = $Panel/Margin/VBox/TextLabel
 @onready var choices_box: VBoxContainer = $Panel/Margin/VBox/ChoicesBox
@@ -11,40 +16,95 @@ const STORY_PATH := "res://sample/stories/demo.nrstory"
 @onready var status_label: Label = $Panel/Margin/VBox/BottomBar/StatusLabel
 
 var _session: RefCounted
+var _story_paths: Array[String] = []
 
 func _ready() -> void:
 	next_button.pressed.connect(_on_next_pressed)
-	_init_session()
+	load_button.pressed.connect(_on_load_pressed)
+	refresh_button.pressed.connect(_on_refresh_pressed)
+	story_option.item_selected.connect(_on_story_selected)
+	path_edit.text_submitted.connect(func(_text: String) -> void:
+		_on_load_pressed()
+	)
 
-func _init_session() -> void:
+	_refresh_story_list()
+	_load_story_path(_selected_or_default_path())
+
+func _create_session() -> bool:
 	var session_script: Script = load(SESSION_SCRIPT)
 	if session_script == null:
 		_push_status("Failed to load session script")
-		return
+		return false
 
 	_session = session_script.new()
 	_session.line_changed.connect(_on_line_changed)
 	_session.choices_changed.connect(_on_choices_changed)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
+	return true
 
-	var story := _load_story_from_file_or_fallback()
+func _load_story_path(path: String) -> void:
+	_clear_story_view()
+	if path.strip_edges().is_empty():
+		_push_status("Empty story path")
+		return
+
+	path_edit.text = path
+	if not _create_session():
+		return
+
+	var story := _load_story_from_file_or_fallback(path)
 	_session.start(story)
-	_push_status("Running")
+	if _session.get_state().get("state", "") != "ended":
+		_push_status("Running: %s" % path)
 
-func _load_story_from_file_or_fallback() -> Dictionary:
+func _load_story_from_file_or_fallback(path: String) -> Dictionary:
 	var loader_script: Script = load(LOADER_SCRIPT)
 	if loader_script == null:
 		_push_status("Loader missing, fallback to built-in story")
 		return _build_demo_story()
 
-	var result: Dictionary = loader_script.call("load_story", STORY_PATH)
+	var result: Dictionary = loader_script.call("load_story", path)
 	if not result.get("ok", false):
 		_push_status("Load failed, fallback: %s" % String(result.get("error", "unknown")))
 		return _build_demo_story()
 
-	_push_status("Loaded from file: %s" % STORY_PATH)
 	return result.get("story", {})
+
+func _refresh_story_list() -> void:
+	_story_paths.clear()
+	story_option.clear()
+
+	var dir := DirAccess.open(STORY_DIR)
+	if dir != null:
+		dir.list_dir_begin()
+		var file_name := dir.get_next()
+		while not file_name.is_empty():
+			if not dir.current_is_dir() and file_name.ends_with(".nrstory"):
+				_story_paths.append("%s/%s" % [STORY_DIR, file_name])
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	_story_paths.sort()
+	if _story_paths.is_empty():
+		_story_paths.append(DEFAULT_STORY_PATH)
+
+	for path in _story_paths:
+		story_option.add_item(path.get_file())
+		story_option.set_item_metadata(story_option.item_count - 1, path)
+
+	var selected_index := _story_paths.find(path_edit.text)
+	if selected_index < 0:
+		selected_index = max(_story_paths.find(DEFAULT_STORY_PATH), 0)
+	story_option.select(selected_index)
+	path_edit.text = _story_paths[selected_index]
+
+func _selected_or_default_path() -> String:
+	if story_option.selected >= 0:
+		return String(story_option.get_item_metadata(story_option.selected))
+	if not path_edit.text.strip_edges().is_empty():
+		return path_edit.text.strip_edges()
+	return DEFAULT_STORY_PATH
 
 func _build_demo_story() -> Dictionary:
 	return {
@@ -53,6 +113,7 @@ func _build_demo_story() -> Dictionary:
 			"storyId": "demo_ui",
 			"entryNodeId": "N_Start"
 		},
+		"variables": [],
 		"nodes": [
 			{
 				"nodeId": "N_Start",
@@ -121,9 +182,30 @@ func _on_next_pressed() -> void:
 	if _session != null:
 		_session.next()
 
+func _on_load_pressed() -> void:
+	_load_story_path(path_edit.text.strip_edges())
+
+func _on_refresh_pressed() -> void:
+	var current_path := path_edit.text.strip_edges()
+	_refresh_story_list()
+	if not current_path.is_empty():
+		path_edit.text = current_path
+	_load_story_path(path_edit.text.strip_edges())
+
+func _on_story_selected(index: int) -> void:
+	var path := String(story_option.get_item_metadata(index))
+	path_edit.text = path
+	_load_story_path(path)
+
 func _clear_choices() -> void:
 	for child in choices_box.get_children():
 		child.queue_free()
+
+func _clear_story_view() -> void:
+	_clear_choices()
+	speaker_label.text = "Speaker: "
+	text_label.text = ""
+	next_button.disabled = true
 
 func _push_status(text: String) -> void:
 	status_label.text = text

@@ -1,0 +1,80 @@
+meta:
+  schemaVersion: 1
+  storyId: choice_availability_bool
+  entryNodeId: N_Start
+
+variables:
+  - name: HasKey
+    type: Bool
+    scope: Session
+    defaultValue: "true"
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+
+  - nodeId: N_Choice
+    nodeType: Choice
+    choices:
+      - textKey: open
+        targetNodeId: N_Open
+        availability:
+          logic: All
+          terms:
+            - variable:
+                name: HasKey
+                type: Bool
+                scope: Session
+              operator: "=="
+              compareValue: "true"
+      - textKey: locked
+        targetNodeId: N_Locked
+        availability:
+          logic: All
+          terms:
+            - variable:
+                name: HasKey
+                type: Bool
+                scope: Session
+              operator: "=="
+              compareValue: "false"
+
+  - nodeId: N_Open
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: open_path
+
+  - nodeId: N_Locked
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: locked_path
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_Choice
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Open
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Locked
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

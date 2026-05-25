@@ -1,0 +1,15 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_multi_dialogue_empty
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: Narrator
+      lines: []
+
+edges: []

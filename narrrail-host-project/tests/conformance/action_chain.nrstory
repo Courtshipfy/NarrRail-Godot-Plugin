@@ -1,0 +1,83 @@
+meta:
+  schemaVersion: 1
+  storyId: action_chain
+  entryNodeId: N_Start
+
+variables:
+  - name: Score
+    type: Int
+    scope: Session
+    defaultValue: "0"
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+    enterActions:
+      - actionType: Set
+        variable:
+          name: Score
+          type: Int
+          scope: Session
+        value: "1"
+      - actionType: Add
+        variable:
+          name: Score
+          type: Int
+          scope: Session
+        value: "9"
+      - actionType: EmitEvent
+        eventId: score_ready
+    exitActions:
+      - actionType: Subtract
+        variable:
+          name: Score
+          type: Int
+          scope: Session
+        value: "4"
+      - actionType: EmitEvent
+        eventId: left_start
+
+  - nodeId: N_Bonus
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: bonus
+    enterActions:
+      - actionType: Add
+        variable:
+          name: Score
+          type: Int
+          scope: Session
+        value: "4"
+      - actionType: EmitEvent
+        eventId: bonus_enter
+
+  - nodeId: N_End
+    nodeType: End
+    enterActions:
+      - actionType: EmitEvent
+        eventId: end_enter
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_Bonus
+    priority: 0
+    condition:
+      logic: All
+      terms:
+        - variable:
+            name: Score
+            type: Int
+            scope: Session
+          operator: "=="
+          compareValue: "6"
+
+  - sourceNodeId: N_Bonus
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
