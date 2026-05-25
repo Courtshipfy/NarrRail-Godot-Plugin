@@ -1,0 +1,14 @@
+[remap]
+
+importer="narrrail.nrstory_importer"
+type="Resource"
+uid="uid://dwp7lutvd3oik"
+path="res://.godot/imported/demo.nrstory-d42b1db5b65774cbc9ee7e855e280ff3.res"
+
+[deps]
+
+source_file="res://sample/stories/demo.nrstory"
+dest_files=["res://.godot/imported/demo.nrstory-d42b1db5b65774cbc9ee7e855e280ff3.res"]
+
+[params]
+

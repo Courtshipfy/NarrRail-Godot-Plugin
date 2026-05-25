@@ -14,7 +14,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M1 - Runtime Core
 
 ### NR-GD-001-01 Runtime Data Model
-- Status: [ ]
+- Status: [~]
 - Goal: Define runtime data structures for nodes/edges/choices/variables/events.
 - DoD:
   - [ ] Data model supports all required node types.
@@ -22,7 +22,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
   - [ ] Unit tests cover core model constraints.
 
 ### NR-GD-001-02 Story Session State Machine
-- Status: [ ]
+- Status: [~]
 - Goal: Implement Start/Next/Choose/Stop flow with deterministic transitions.
 - DoD:
   - [ ] Supports linear dialogue and branching choice flow.
@@ -51,7 +51,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M2 - Import & Validation
 
 ### NR-GD-002-01 `.nrstory` Parser
-- Status: [ ]
+- Status: [~]
 - Goal: Parse script file into internal runtime model.
 - DoD:
   - [ ] Parse success for valid sample scripts.
@@ -59,7 +59,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
   - [ ] Version/schema field captured.
 
 ### NR-GD-002-02 Asset/Resource Integration
-- Status: [ ]
+- Status: [~]
 - Goal: Map parsed story data into Godot-friendly resources/classes.
 - DoD:
   - [ ] Load path supports runtime consumption.
@@ -67,7 +67,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
   - [ ] Minimal sample scene demonstrates loading and execution.
 
 ### NR-GD-002-03 Validation Pipeline
-- Status: [ ]
+- Status: [~]
 - Goal: Implement static validation (broken links, duplicate IDs, orphan nodes).
 - DoD:
   - [ ] Validation report includes location + fix suggestion.
@@ -79,7 +79,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M3 - API & Integration
 
 ### NR-GD-003-01 Public Runtime API
-- Status: [ ]
+- Status: [~]
 - Goal: Expose stable API for game-side integration.
 - DoD:
   - [ ] Session lifecycle APIs documented.
@@ -87,7 +87,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
   - [ ] API usage example in sample project.
 
 ### NR-GD-003-02 UI Integration Helpers
-- Status: [ ]
+- Status: [~]
 - Goal: Provide helper interfaces for dialogue UI and choices.
 - DoD:
   - [ ] Clean separation between runtime and UI.
@@ -159,7 +159,13 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 
 > Record task completion evidence here.
 
-- YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
+- 2026-05-25 - `NR-GD-001-01` - Done by: `agent` - Evidence: Added `addons/narrrail/runtime/story_model.gd` (minimal schema checks: required roots, entry existence, duplicate nodeId, edge refs).
+- 2026-05-25 - `NR-GD-001-02` - Done by: `agent + user validation` - Evidence: Added `addons/narrrail/runtime/narrrail_session.gd`; user runtime log confirms `start -> next -> choice -> choose -> end` flow.
+- 2026-05-25 - `NR-GD-002-01` - Done by: `agent` - Evidence: Added `addons/narrrail/importer/nrstory_loader.gd` with YAML-first parsing and JSON fallback; sample file `sample/stories/demo.nrstory` loads in demo UI.
+- 2026-05-25 - `NR-GD-002-02` - Done by: `agent` - Evidence: Added `addons/narrrail/importer/nrstory_import_plugin.gd` + `addons/narrrail/narrrail_story_resource.gd`; plugin registers `.nrstory` importer and creates imported `.res` resource.
+- 2026-05-25 - `NR-GD-003-01` - Done by: `agent` - Evidence: Session API exposed (`start`, `next`, `choose`, `get_state`) with signals (`line_changed`, `choices_changed`, `ended`, `error_raised`).
+- 2026-05-25 - `NR-GD-003-02` - Done by: `agent + user validation` - Evidence: Added visual sample scene `sample/scenes/demo_ui.tscn` and script `sample/scripts/demo_ui.gd`; user confirmed UI flow works.
+
 - YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
 
 ---

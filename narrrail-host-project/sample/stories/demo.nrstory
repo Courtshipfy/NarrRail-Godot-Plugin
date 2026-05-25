@@ -1,0 +1,58 @@
+meta:
+  schemaVersion: 1
+  storyId: demo_ui_file
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: "你好，今天一起去散步吗？"
+
+  - nodeId: N_Choice
+    nodeType: Choice
+    choices:
+      - textKey: "好啊，一起去！"
+        targetNodeId: N_Yes
+      - textKey: "今天先不了。"
+        targetNodeId: N_No
+
+  - nodeId: N_Yes
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: "太好了，那我们出发吧！"
+
+  - nodeId: N_No
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: "没关系，下次再约。"
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_Choice
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Yes
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_No
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
