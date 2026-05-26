@@ -1,0 +1,247 @@
+meta:
+  schemaVersion: 1
+  storyId: 撫物語
+  entryNodeId: node-1779074413767
+variables: []
+nodes:
+  - nodeId: node-1779074413767
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 千石抚子
+      textKey: 是一个选择分支的问题测试哦，说到各种类型的抚子~，你最喜欢哪个呢？
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1779074571589
+    nodeType: Choice
+    choices:
+      - textKey: 今抚子
+        targetNodeId: node-1779075365052
+      - textKey: 乖巧抚子
+        targetNodeId: node-1779074829308
+      - textKey: 谄媚抚子
+        targetNodeId: node-1779074841627
+      - textKey: 乖张抚子
+        targetNodeId: node-1779074852823
+      - textKey: 神明抚子
+        targetNodeId: node-1779074858328
+    choiceMode: ExhaustiveUntilComplete
+    choiceCompletionTargetNodeId: node-1779085760187
+  - nodeId: node-1779074829308
+    nodeType: Choice
+    choices:
+      - textKey: 嗯……那个，说起乖巧的抚子，就是那个吧，刘海长长的、总是低着头、说话声音像蚊子一样的抚子。
+        targetNodeId: node-1779074901039
+    choiceMode: SinglePass
+    choiceCompletionTargetNodeId: ""
+  - nodeId: node-1779074841627
+    nodeType: Choice
+    choices:
+      - textKey: 啊——说到这个抚子，抚子就会有点头疼呢。
+        targetNodeId: node-1779075062672
+    choiceMode: SinglePass
+    choiceCompletionTargetNodeId: ""
+  - nodeId: node-1779074852823
+    nodeType: Choice
+    choices:
+      - textKey: 唔……乖张抚子啊。她刘海短短的、乱七八糟的，眼神里全是暴力和不耐烦。
+        targetNodeId: node-1779075183447
+    choiceMode: SinglePass
+    choiceCompletionTargetNodeId: ""
+  - nodeId: node-1779074858328
+    nodeType: Choice
+    choices:
+      - textKey: 神明抚子啊……这个抚子最可怕了。
+        targetNodeId: node-1779075262254
+    choiceMode: SinglePass
+    choiceCompletionTargetNodeId: ""
+  - nodeId: node-1779074901039
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: 千石抚子
+      lines:
+        - textKey: 她呀，好像一直活在“对不起”三个字里面。
+        - textKey: 不管别人说什么，她都觉得是自己的错。
+        - textKey: 走路碰到人，明明是被撞的那个，她也会先说对不起。
+        - textKey: 她觉得自己什么都做不到，什么都不会改变，所以干脆就不去尝试了。
+        - textKey: 她只会蜷缩在角落里，用那双怯生生的大眼睛看着别人……啊，说起来，其实我挺讨厌她那种眼神的。
+        - textKey: 但是……但是后来我才明白，那种“讨厌”的感觉，也许是在讨厌那个时候的自己吧。
+        - textKey: 她真的很害怕，害怕一切。就连她创造出来的泳衣抚子和清凉抚子，大概也只是她想给自己找一点安全感……虽然，用那种方式获得安全感，感觉有点可悲呢。
+  - nodeId: node-1779075062672
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: 千石抚子
+      lines:
+        - textKey: 她戴着那个可爱的发卡，穿着吊带裙，走在路上总是笑眯眯的。
+        - textKey: 她会说“诶～真的吗？”、“好厉害啊～”之类的话，不管对方说什么都很配合。所有人都觉得她很开朗、很会聊天，是那种让人喜欢的女孩子。
+        - textKey: 但是……但是啊，她心里其实在说“好麻烦”、“快点结束吧”、“为什么要说这种无聊的话”。
+        - textKey: 她太聪明了，聪明到知道怎么做才能让别人喜欢自己，所以她就一直那样演着。
+        - textKey: 她觉得追逐梦想是一件很丢人的事情，因为万一失败了，就会被人嘲笑。
+        - textKey: 所以她总是说“抚子没有梦想啦”、“随便啦”之类的话……其实，她比任何人都想要一个了不起的梦想，只是不敢承认而已。
+        - textKey: 抚子虽然最后亲手……嗯，亲手把她终结了，但是抚子知道，她说的那些话里，也有真心话。只是那种真心话，太伤人了。
+  - nodeId: node-1779075183447
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: 千石抚子
+      lines:
+        - textKey: 她会大喊大叫，会拿雕刻刀乱挥，会说出很多很过分的话。
+        - textKey: 她说“努力有什么意义啊”、“去死吧”、“全都去死吧”。
+        - textKey: 她否定一切，逃避一切，只想躺在那里什么也不干。
+        - textKey: 她看起来很强大，很可怕，但其实……她是最脆弱的那个。
+        - textKey: 因为只有真正绝望的人，才会用那种方式保护自己。
+        - textKey: 她不是不想努力，她是不敢再相信自己可以成功。
+        - textKey: 所以她说“努力是傻子做的事情”，说“不努力就不会受伤”……抚子最后抱住她的时候，她其实……嗯，她没有反抗。
+        - textKey: 也许，她一直在等有人能抱住她吧。只是以前的抚子，从来不愿意正视她。
+  - nodeId: node-1779075262254
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: 千石抚子
+      lines:
+        - textKey: 她穿着那种像巫女一样的衣服，身后飘着御币，眼神里什么都没有。
+        - textKey: 不是空洞哦，是“什么都没有”。
+        - textKey: 没有温柔，没有愤怒，没有悲伤，也没有希望。
+        - textKey: 她不相信任何人，觉得所有人都会背叛她、伤害她。
+        - textKey: 所以她先下手为强，想毁掉一切。
+        - textKey: 她很强，强到连余接都说她不好对付。
+        - textKey: 她挟持了乖巧抚子的式神，用那种绝对自由的力量，随心所欲地破坏……但是，但是你知道吗？神明抚子她啊，也许才是最需要被爱的那一个。
+        - textKey: 因为只有被伤得太深的人，才会变成那个样子。
+        - textKey: 最后抚子用谎言骗了她，她才消失的。
+        - textKey: 用谎言对付不相信任何人的她……挺讽刺的吧？
+        - textKey: 但抚子不想承认自己用了谎言，就说那是“计谋”好了。反正，不管是谎言还是计谋，抚子都觉得自己很卑鄙。
+  - nodeId: node-1779075365052
+    nodeType: Choice
+    choices:
+      - textKey: 如果用今抚子的口吻来描述“自己”，那应该是一个……怎么说呢，一个有点啰嗦、有点纠结、但又确实在一点点向前走的普通女孩子吧
+        targetNodeId: node-1779081427714
+    choiceMode: SinglePass
+    choiceCompletionTargetNodeId: ""
+  - nodeId: node-1779081427714
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: 千石抚子
+      lines:
+        - textKey: 嗯……那个，你问抚子怎么描述自己啊？
+        - textKey: 抚子想了想……大概是……一个“不再逃跑的胆小鬼”？
+        - textKey: 啊，这样说好像很奇怪吧？不逃跑的胆小鬼算什么胆小鬼呢……但是抚子觉得，真正的胆小鬼，就是明明害怕得要死、明明想跑得要命，却还是站在那里不动的人。因为逃跑的话，就永远不用面对那些可怕的事情了。可是抚子不逃了，不是因为她变勇敢了，而是因为她……累了。
+        - textKey: 逃跑也是很累的啊。一直跑、一直跑，跑到最后都不知道自己在躲什么了。
+        - textKey: 现在的抚子，嗯……还是那个没什么自信、容易想太多、动不动就觉得“啊，完蛋了”的人。看到自己的漫画被人看的时候，还是会心脏砰砰跳，想要把稿子抢回来藏起来。有人说“画得不错”的时候，第一反应是“他是不是在客气”。遇到困难的时候，脑子里还是会有一个声音说“放弃吧，你做不到的”。
+        - textKey: 但是……但是啊，抚子学会了和那个声音吵架。
+        - textKey: “放弃吧。”
+        - textKey: “……不要。”
+        - textKey: “你肯定会失败的。”
+        - textKey: “……那又怎样？”
+        - textKey: 大概就是这种感觉。很幼稚吧？像个小孩子在跟空气吵架一样。但是对抚子来说，这种吵架已经很了不起了。以前的抚子，连吵架的力气都没有，只会乖乖点头说“嗯，你说得对”。
+        - textKey: 现在的抚子，会自己跑去便利店买饮料，会主动跟编辑先生说话（虽然还是会紧张），会在交稿日前熬夜画画，会……嗯，会承认自己其实很想成功。
+        - textKey: 很丢人吧？说这种话。
+        - textKey: 但是抚子觉得，承认自己想成功，比假装无所谓要难多了。“无所谓”是一种保护色，就像谄媚抚子那样，先说不想要，这样得不到的时候就不会难过。可是现在的抚子，愿意把“想要”这两个字说出来了。虽然说出来的时候声音还是很小，脸还是很红，手还是在抖……
+        - textKey: 但她说出来了。
+        - textKey: 所以，如果一定要用一句话描述现在的抚子……
+        - textKey: 抚子觉得，自己是一个“知道害怕、但还是伸出手去碰那个梦想的笨蛋”吧。
+        - textKey: 啊，这样说好像有点帅气？但是抚子说的时候其实一直在发抖哦。所以没那么帅气啦，只是……只是普通的、笨拙的、一点点在变的抚子而已。
+        - textKey: 嗯，就这样。
+  - nodeId: node-1779081504400
+    nodeType: End
+  - nodeId: node-1779085760187
+    nodeType: End
+edges:
+  - sourceNodeId: node-1779074413767
+    targetNodeId: node-1779074571589
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074571589
+    targetNodeId: node-1779074841627
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074571589
+    targetNodeId: node-1779074852823
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074571589
+    targetNodeId: node-1779074858328
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074829308
+    targetNodeId: node-1779074901039
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074571589
+    targetNodeId: node-1779074829308
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074841627
+    targetNodeId: node-1779075062672
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074852823
+    targetNodeId: node-1779075183447
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074858328
+    targetNodeId: node-1779075262254
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074571589
+    targetNodeId: node-1779075365052
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779075365052
+    targetNodeId: node-1779081427714
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779081427714
+    targetNodeId: node-1779081504400
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074901039
+    targetNodeId: node-1779081504400
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779075062672
+    targetNodeId: node-1779081504400
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779075183447
+    targetNodeId: node-1779081504400
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779075262254
+    targetNodeId: node-1779081504400
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1779074571589
+    targetNodeId: node-1779085760187
+    priority: 0
+    condition:
+      logic: All
+      terms: []

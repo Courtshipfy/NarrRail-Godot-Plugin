@@ -70,9 +70,9 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - Status: [~]
 - Goal: Implement static validation (broken links, duplicate IDs, orphan nodes).
 - DoD:
-  - [ ] Validation report includes location + fix suggestion.
-  - [ ] Can run validation without entering runtime play flow.
-  - [ ] Tests include invalid fixtures with expected diagnostics.
+  - [~] Validation report includes location + fix suggestion.
+  - [x] Can run validation without entering runtime play flow.
+  - [~] Tests include invalid fixtures with expected diagnostics.
 
 ---
 
@@ -170,6 +170,11 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - 2026-05-25 - `NR-GD-001-02` - Update by: `agent` - Evidence: Added `MultiDialogue` runtime progression (`lineIndex`, one `Next` per line, exit after final line) plus conformance fixtures for valid/invalid `MultiDialogue`; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
 - 2026-05-25 - `NR-GD-001-02` - Update by: `agent` - Evidence: Added `Choice.choiceMode=ExhaustiveUntilComplete` support with per-choice-node exhausted target tracking, hidden selected choices, and completion target transition; added valid/invalid conformance fixtures; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
 - 2026-05-25 - `NR-GD-001-02` - Fix by: `agent` - Evidence: Updated `ExhaustiveUntilComplete` to maintain a runtime return frame so branches that end at `End` or have no outgoing edge return to the source Choice until all options are exhausted; added `choice_exhaustive_terminal_return.nrstory`; verified `撫物語.nrstory` returns to the source Choice with 4 options remaining after the first branch; ran conformance with `[NarrRail][Conformance] PASS`.
+- 2026-05-26 - `NR-GD-002-01` - Update by: `agent + user validation` - Evidence: Upgraded `nrstory_loader.gd` to return structured diagnostics (`severity/code/path/message/line`), added schemaVersion guardrail (`SUPPORTED_SCHEMA_VERSION=1`, reject future versions, warn on old versions), and wired diagnostics formatting into importer/UI; user headless run reports `[NarrRail][Conformance] PASS`.
+- 2026-05-26 - `NR-GD-002-03` - Update by: `agent` - Evidence: Added independent static validation pipeline `addons/narrrail/importer/nrstory_validator.gd` (duplicate node IDs, broken edge refs, invalid choice targets, orphan node warnings) and integrated it into loader flow without entering runtime play state.
+- 2026-05-26 - `NR-GD-002-03` - Update by: `agent` - Evidence: Added invalid fixtures (`invalid_parser_missing_fields.nrstory`, `invalid_validator_refs.nrstory`) and conformance assertions for expected diagnostic codes in `tests/conformance/conformance_runner.gd`.
+- 2026-05-26 - `NR-GD-002-02` - Update by: `agent` - Evidence: Updated sample UI loader path to prefer imported `.nrstory` Resource (`story_data`) via `load(path)` and fallback to direct parse only if import path is unavailable.
+- 2026-05-26 - `NR-GD-003-02` - Update by: `agent` - Evidence: Added standalone VN-style player scene `sample/scenes/vn_player.tscn` and controller `sample/scripts/vn_player.gd` (speaker/text display, click-to-next, dynamic choices, configurable `story_path` in Inspector).
 
 - YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
 

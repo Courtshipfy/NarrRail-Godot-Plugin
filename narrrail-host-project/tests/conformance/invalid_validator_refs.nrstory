@@ -1,0 +1,27 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_validator_refs
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Choice
+    choices:
+      - textKey: go
+        targetNodeId: N_MissingChoiceTarget
+
+  - nodeId: N_Dup
+    nodeType: End
+
+  - nodeId: N_Dup
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_MissingEdgeTarget
+    priority: 0
+    condition:
+      logic: All
+      terms: []

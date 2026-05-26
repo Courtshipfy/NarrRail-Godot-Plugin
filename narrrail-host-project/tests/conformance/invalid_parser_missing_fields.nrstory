@@ -1,0 +1,11 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_parser_missing_fields
+  entryNodeId: N_Start
+
+# variables missing on purpose
+nodes:
+  - nodeId: N_Start
+    nodeType: End
+
+# edges missing on purpose

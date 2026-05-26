@@ -21,6 +21,8 @@ func _run() -> void:
 	_run_choice_exhaustive()
 	_run_choice_exhaustive_terminal_return()
 	_run_invalid_choice_exhaustive_completion()
+	_run_invalid_parser_missing_fields()
+	_run_invalid_validator_refs()
 
 	if _failures.is_empty():
 		print("[NarrRail][Conformance] PASS")
@@ -31,15 +33,19 @@ func _run() -> void:
 		quit(1)
 
 func _load_story(path: String) -> Dictionary:
-	var loader_script: Script = load(LOADER_SCRIPT)
-	if loader_script == null:
-		_failures.append("Failed to load story loader script")
-		return {}
-	var result: Dictionary = loader_script.call("load_story", path)
+	var result := _load_story_result(path)
 	if not result.get("ok", false):
 		_failures.append("Failed to load %s: %s" % [path, String(result.get("error", "unknown"))])
 		return {}
 	return result.get("story", {})
+
+func _load_story_result(path: String) -> Dictionary:
+	var loader_script: Script = load(LOADER_SCRIPT)
+	if loader_script == null:
+		_failures.append("Failed to load story loader script")
+		return {"ok": false, "error": "loader script missing", "diagnostics": []}
+	var result: Dictionary = loader_script.call("load_story", path)
+	return result
 
 func _new_session(trace: Array, errors: Array) -> RefCounted:
 	var session_script: Script = load(SESSION_SCRIPT)
@@ -367,11 +373,38 @@ func _run_invalid_choice_exhaustive_completion() -> void:
 	if errors.size() != 1 or not String(errors[0]).contains("Exhaustive choice missing choiceCompletionTargetNodeId on node: N_Choice"):
 		_failures.append("invalid_choice_exhaustive_completion expected completion-target error, got %s" % str(errors))
 
+func _run_invalid_parser_missing_fields() -> void:
+	var result := _load_story_result("res://tests/conformance/invalid_parser_missing_fields.nrstory")
+	_expect_equal("invalid_parser_missing_fields ok", result.get("ok", true), false)
+	_expect_diag_codes("invalid_parser_missing_fields diagnostics", result.get("diagnostics", []), [
+		"MISSING_FIELD"
+	])
+
+func _run_invalid_validator_refs() -> void:
+	var result := _load_story_result("res://tests/conformance/invalid_validator_refs.nrstory")
+	_expect_equal("invalid_validator_refs ok", result.get("ok", true), false)
+	_expect_diag_codes("invalid_validator_refs diagnostics", result.get("diagnostics", []), [
+		"NODE_ID_DUPLICATE",
+		"EDGE_TARGET_NOT_FOUND",
+		"CHOICE_TARGET_NOT_FOUND"
+	])
+
 func _event_ids(events: Array) -> Array:
 	var out: Array = []
 	for event in events:
 		out.append(String(event.get("eventId", "")))
 	return out
+
+func _expect_diag_codes(label: String, diagnostics: Array, expected_codes: Array) -> void:
+	var actual_codes: Dictionary = {}
+	for d in diagnostics:
+		var code := String((d as Dictionary).get("code", ""))
+		if not code.is_empty():
+			actual_codes[code] = true
+
+	for expected_code in expected_codes:
+		if not actual_codes.has(String(expected_code)):
+			_failures.append("%s missing code=%s actual=%s" % [label, String(expected_code), str(actual_codes.keys())])
 
 func _expect_equal(label: String, actual, expected) -> void:
 	if actual != expected:

@@ -35,7 +35,7 @@ func _import(source_file: String, save_path: String, options: Dictionary, platfo
 
 	var result: Dictionary = loader_script.call("load_story", source_file)
 	if not result.get("ok", false):
-		push_error("[NarrRail] Import failed: %s" % String(result.get("error", "unknown")))
+		push_error("[NarrRail] Import failed: %s" % _format_diagnostics(result))
 		return ERR_PARSE_ERROR
 
 	var res := NarrRailStoryResource.new()
@@ -44,3 +44,17 @@ func _import(source_file: String, save_path: String, options: Dictionary, platfo
 
 	var out_path := "%s.%s" % [save_path, _get_save_extension()]
 	return ResourceSaver.save(res, out_path)
+
+func _format_diagnostics(result: Dictionary) -> String:
+	var diagnostics: Array = result.get("diagnostics", [])
+	if diagnostics.is_empty():
+		return String(result.get("error", "unknown"))
+
+	var parts: Array[String] = []
+	for d in diagnostics:
+		var sev := String(d.get("severity", ""))
+		var code := String(d.get("code", ""))
+		var path := String(d.get("path", ""))
+		var msg := String(d.get("message", ""))
+		parts.append("[%s][%s] %s: %s" % [sev, code, path, msg])
+	return " | ".join(parts)
