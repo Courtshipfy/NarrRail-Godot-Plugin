@@ -74,6 +74,6 @@ godot --headless --path narrrail-host-project --script res://tests/conformance/c
 
 ## 相关文档
 
-- `Docs/SCRIPT_FORMAT.md` - `.nrstory` 格式规范
-- `Docs/SPEC_SYNC.md` - 规范同步策略
-- `Docs/TASK_PLAN.md` - 任务拆解与里程碑
+- `Docs/02_runtime/SCRIPT_FORMAT.md` - `.nrstory` 格式规范
+- `Docs/02_runtime/SPEC_SYNC.md` - 规范同步策略
+- `Docs/01_architecture/TASK_PLAN.md` - 任务拆解与里程碑

@@ -1,0 +1,115 @@
+# NarrRail Runtime API (`NR-GD-003-01`)
+
+This document defines the current public runtime API surface for game-side integration.
+
+## Primary Runtime Class
+
+- Class: `NarrRailSession`
+- Script: `res://addons/narrrail/runtime/narrrail_session.gd`
+- Type: `RefCounted`
+
+## Lifecycle Methods
+
+### `start(story_data: Dictionary) -> void`
+
+Initialize session state and enter `meta.entryNodeId`.
+
+Behavior:
+- validates story shape/refs before runtime flow
+- initializes variables from `variables[]`
+- emits initial `line_changed` or `choices_changed` depending on first node
+
+Failure:
+- emits `error_raised(message)` and moves to terminal/error state
+
+### `next() -> void`
+
+Advance current runtime state.
+
+Behavior:
+- `Dialogue`: resolve edge and enter next node
+- `MultiDialogue`: advance one line; after last line, leave via edges
+- `End`: no-op terminal behavior
+
+Guardrails:
+- if waiting for choice, calling `next()` emits `error_raised`
+
+### `choose(index: int) -> void`
+
+Select an option when in `Choice` state.
+
+Behavior:
+- validates index
+- applies `choiceMode` semantics (`SinglePass`, `ExhaustiveUntilComplete`)
+- transitions to selected target
+
+Failure:
+- emits `error_raised(message)`
+
+### `get_state() -> Dictionary`
+
+Returns current runtime snapshot:
+- `state`
+- `currentNodeId`
+- `currentLineIndex`
+- `choices`
+- `variables`
+- `events`
+- `exhaustedChoiceTargets`
+- `exhaustiveChoiceStack`
+
+## Signals (Callback/Event Subscription)
+
+### `line_changed(payload: Dictionary)`
+
+Payload fields:
+- `nodeId: String`
+- `lineIndex: int`
+- `speakerId: String`
+- `textKey: String`
+
+### `choices_changed(choices: Array)`
+
+Emitted when a choice node is entered with available options.
+
+### `ended()`
+
+Emitted on terminal completion.
+
+### `error_raised(message: String)`
+
+Emitted on validation/runtime transition errors.
+
+### `variable_changed(payload: Dictionary)`
+
+Emitted when `Set/Add/Subtract` mutates variable state.
+
+### `event_emitted(payload: Dictionary)`
+
+Emitted when `EmitEvent` action is executed.
+
+## Minimal Integration Example
+
+```gdscript
+var session_script: Script = load("res://addons/narrrail/runtime/narrrail_session.gd")
+var session: RefCounted = session_script.new()
+
+session.line_changed.connect(func(payload: Dictionary):
+    print("line", payload)
+)
+session.choices_changed.connect(func(choices: Array):
+    print("choices", choices)
+)
+session.error_raised.connect(func(message: String):
+    push_error(message)
+)
+
+session.start(story_dict)
+# session.next()
+# session.choose(0)
+```
+
+## Sample References
+
+- `res://sample/scripts/demo_ui.gd`
+- `res://sample/scripts/vn_player.gd`

@@ -22,12 +22,12 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
   - [ ] Unit tests cover core model constraints.
 
 ### NR-GD-001-02 Story Session State Machine
-- Status: [~]
+- Status: [x]
 - Goal: Implement Start/Next/Choose/Stop flow with deterministic transitions.
 - DoD:
   - [x] Supports linear dialogue and branching choice flow.
   - [x] Handles terminal states correctly.
-  - [ ] Transition errors return actionable diagnostics.
+  - [x] Transition errors return actionable diagnostics.
   - [x] Tests cover happy path + invalid transition cases.
 
 ### NR-GD-001-03 Condition Evaluation
@@ -51,20 +51,20 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M2 - Import & Validation
 
 ### NR-GD-002-01 `.nrstory` Parser
-- Status: [~]
+- Status: [x]
 - Goal: Parse script file into internal runtime model.
 - DoD:
-  - [ ] Parse success for valid sample scripts.
-  - [ ] Structured error output for invalid scripts.
-  - [ ] Version/schema field captured.
+  - [x] Parse success for valid sample scripts.
+  - [x] Structured error output for invalid scripts.
+  - [x] Version/schema field captured.
 
 ### NR-GD-002-02 Asset/Resource Integration
-- Status: [~]
+- Status: [x]
 - Goal: Map parsed story data into Godot-friendly resources/classes.
 - DoD:
-  - [ ] Load path supports runtime consumption.
-  - [ ] Reimport/update behavior is stable.
-  - [ ] Minimal sample scene demonstrates loading and execution.
+  - [x] Load path supports runtime consumption.
+  - [x] Reimport/update behavior is stable.
+  - [x] Minimal sample scene demonstrates loading and execution.
 
 ### NR-GD-002-03 Validation Pipeline
 - Status: [~]
@@ -72,27 +72,27 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - DoD:
   - [~] Validation report includes location + fix suggestion.
   - [x] Can run validation without entering runtime play flow.
-  - [~] Tests include invalid fixtures with expected diagnostics.
+  - [x] Tests include invalid fixtures with expected diagnostics.
 
 ---
 
 ## Milestone M3 - API & Integration
 
 ### NR-GD-003-01 Public Runtime API
-- Status: [~]
+- Status: [x]
 - Goal: Expose stable API for game-side integration.
 - DoD:
-  - [ ] Session lifecycle APIs documented.
-  - [ ] Callback/event subscription mechanism provided.
-  - [ ] API usage example in sample project.
+  - [x] Session lifecycle APIs documented.
+  - [x] Callback/event subscription mechanism provided.
+  - [x] API usage example in sample project.
 
 ### NR-GD-003-02 UI Integration Helpers
-- Status: [~]
+- Status: [x]
 - Goal: Provide helper interfaces for dialogue UI and choices.
 - DoD:
-  - [ ] Clean separation between runtime and UI.
-  - [ ] Choice rendering/selection integration example provided.
-  - [ ] No gameplay logic hardcoded in sample UI layer.
+  - [x] Clean separation between runtime and UI.
+  - [x] Choice rendering/selection integration example provided.
+  - [x] No gameplay logic hardcoded in sample UI layer.
 
 ---
 
@@ -138,12 +138,12 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M6 - Conformance & Quality Gate
 
 ### NR-GD-006-01 Conformance Test Suite
-- Status: [ ]
+- Status: [~]
 - Goal: Build cross-engine golden cases for semantic parity.
 - DoD:
-  - [ ] Includes linear, branching, variable, event scenarios.
-  - [ ] Expected node/event/variable outputs defined.
-  - [ ] Test runner or reproducible manual protocol documented.
+  - [x] Includes linear, branching, variable, event scenarios.
+  - [x] Expected node/event/variable outputs defined.
+  - [~] Test runner or reproducible manual protocol documented.
 
 ### NR-GD-006-02 Performance Baseline
 - Status: [ ]
@@ -175,6 +175,10 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - 2026-05-26 - `NR-GD-002-03` - Update by: `agent` - Evidence: Added invalid fixtures (`invalid_parser_missing_fields.nrstory`, `invalid_validator_refs.nrstory`) and conformance assertions for expected diagnostic codes in `tests/conformance/conformance_runner.gd`.
 - 2026-05-26 - `NR-GD-002-02` - Update by: `agent` - Evidence: Updated sample UI loader path to prefer imported `.nrstory` Resource (`story_data`) via `load(path)` and fallback to direct parse only if import path is unavailable.
 - 2026-05-26 - `NR-GD-003-02` - Update by: `agent` - Evidence: Added standalone VN-style player scene `sample/scenes/vn_player.tscn` and controller `sample/scripts/vn_player.gd` (speaker/text display, click-to-next, dynamic choices, configurable `story_path` in Inspector).
+- 2026-05-26 - `NR-GD-003-02` - Update by: `agent + user` - Evidence: Added typewriter effect in `sample/scripts/vn_player.gd` with click-to-skip-current-line behavior before advancing `next()`.
+- 2026-05-26 - `NR-GD-002-02` - Done by: `agent` - Evidence: Added reimport stability protocol doc `Docs/02_runtime/REIMPORT_STABILITY.md` and confirmed sample runtime consumption path prioritizes imported resource.
+- 2026-05-26 - `NR-GD-003-01` - Done by: `agent` - Evidence: Added runtime API documentation `Docs/03_api/RUNTIME_API.md` (lifecycle methods, signals, usage examples).
+- 2026-05-26 - `NR-GD-003-02` - Done by: `agent` - Evidence: Added UI integration guideline `Docs/03_api/UI_INTEGRATION_GUIDE.md` and aligned standalone VN sample behavior.
 
 - YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
 

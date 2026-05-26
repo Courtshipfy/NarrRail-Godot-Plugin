@@ -18,13 +18,13 @@ This document prevents spec drift and implementation guessing by defining:
 
 ## 2.1 Primary source (authoritative)
 - `NarrRail` ecosystem runtime spec:
-  - `Docs/SCRIPT_FORMAT.md` (authoritative semantics & schema)
+  - `Docs/02_runtime/SCRIPT_FORMAT.md` (authoritative semantics & schema)
   - Related architecture/runtime docs where applicable
 
 ## 2.2 Local mirror in this repo
 - Mirror path in this repository:
-  - `Docs/SCRIPT_FORMAT.md`
-  - Related docs under `Docs/` (if copied)
+  - `Docs/02_runtime/SCRIPT_FORMAT.md`
+  - Related docs under `Docs/02_runtime/` and `Docs/01_architecture/` (if copied)
 
 > Rule: Local mirror is for implementation convenience.  
 > If conflict exists, resolve against authoritative source first, then update mirror.
@@ -111,7 +111,7 @@ Do **not** guess semantics for:
 ## Spec Clarification Request - <ID>
 
 - Area: (parser/runtime/condition/action/save-load)
-- File/Section: `Docs/SCRIPT_FORMAT.md#...`
+- File/Section: `Docs/02_runtime/SCRIPT_FORMAT.md#...`
 - Current ambiguity:
 - Candidate interpretations:
   1) ...
@@ -164,8 +164,8 @@ Record each sync operation.
 ## YYYY-MM-DD - SPEC SYNC
 - Source: `<repo/path@commit-or-tag>`
 - Updated files:
-  - `Docs/SCRIPT_FORMAT.md`
-  - `Docs/SPEC_SYNC.md` (if version/sync table is updated)
+  - `Docs/02_runtime/SCRIPT_FORMAT.md`
+  - `Docs/02_runtime/SPEC_SYNC.md` (if version/sync table is updated)
   - `tests/conformance/...` (if any)
 - Semantic changes:
   - ...
@@ -193,7 +193,7 @@ Agents must not start implementation if spec authority is missing.
 
 Required first-step behavior:
 
-1. Read `Docs/SCRIPT_FORMAT.md`.
+1. Read `Docs/02_runtime/SCRIPT_FORMAT.md`.
 2. Produce:
    - field schema summary
    - runtime semantics summary

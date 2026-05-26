@@ -9,7 +9,7 @@ Use this brief at the start of every new AI coding session to restore project co
 - Project: `NarrRail.Godot`
 - Type: Godot plugin/runtime for NarrRail `.nrstory`
 - Primary goal: deterministic story execution compatible with NarrRail semantics
-- Reference governance: `AGENTS.md` (must follow)
+- Reference governance: `Docs/01_architecture/AGENTS.md` (must follow)
 
 ---
 
@@ -38,9 +38,9 @@ Use this brief at the start of every new AI coding session to restore project co
 
 ## 4) Technical References
 
-- `AGENTS.md`
+- `Docs/01_architecture/AGENTS.md`
 - `README.md`
-- `Docs/` (architecture/spec/task docs)
+- `Docs/` (01_architecture / 02_runtime / 03_api docs)
 - `tests/conformance/` cases (if present)
 
 If a reference is missing, report what is missing and proceed with best available context.
