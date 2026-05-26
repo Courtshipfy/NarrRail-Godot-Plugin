@@ -19,17 +19,6 @@ NarrRail-Godot-Plugin/
 - 宿主项目目录：`narrrail-host-project`
 - 创建链接到：`narrrail-host-project/addons/narrrail`
 
-可选参数：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup-dev-link.ps1 \
-  -PluginSource "narrrail-plugin" \
-  -HostProject "narrrail-host-project" \
-  -LinkRelative "addons/narrrail"
-```
-
-> 注意：脚本要求插件目录下存在 `plugin.cfg`（用于验证插件根结构）。
-
 ## 在 Godot 中启用
 
 1. 打开 `narrrail-host-project`
