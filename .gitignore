@@ -1,2 +1,23 @@
-.DS_Store
+# ---- Godot generated / cache ----
+**/.godot/
+**/.import/
 *.import
+
+# ---- Godot export/platform dirs ----
+**/android/
+
+# ---- Godot C# / Mono (if enabled later) ----
+**/.mono/
+**/bin/
+**/obj/
+
+# ---- OS / editor noise ----
+.DS_Store
+Thumbs.db
+
+# ---- Plugin source of truth ----
+# Host-project mount path is a junction/symlink target, do not track it.
+narrrail-host-project/addons/narrrail/
+
+# ---- Keep source-controlled plugin and sample files ----
+# (No broad ignore for addons/ or sample/ on purpose)
