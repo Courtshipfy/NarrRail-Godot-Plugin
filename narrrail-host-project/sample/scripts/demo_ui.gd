@@ -3,6 +3,7 @@ extends Control
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
 const STORY_DIR := "res://sample/stories"
+const SYNCED_STORY_ROOT := "res://narrrail_stories"
 const DEFAULT_STORY_PATH := "res://sample/stories/demo.nrstory"
 
 @onready var story_option: OptionButton = $Panel/Margin/VBox/StoryBar/StoryOption
@@ -17,6 +18,7 @@ const DEFAULT_STORY_PATH := "res://sample/stories/demo.nrstory"
 
 var _session: RefCounted
 var _story_paths: Array[String] = []
+var _story_labels: Dictionary = {}
 
 func _ready() -> void:
 	next_button.pressed.connect(_on_next_pressed)
@@ -88,24 +90,19 @@ func _load_story_from_file_or_fallback(path: String) -> Dictionary:
 
 func _refresh_story_list() -> void:
 	_story_paths.clear()
+	_story_labels.clear()
 	story_option.clear()
 
-	var dir := DirAccess.open(STORY_DIR)
-	if dir != null:
-		dir.list_dir_begin()
-		var file_name := dir.get_next()
-		while not file_name.is_empty():
-			if not dir.current_is_dir() and file_name.ends_with(".nrstory"):
-				_story_paths.append("%s/%s" % [STORY_DIR, file_name])
-			file_name = dir.get_next()
-		dir.list_dir_end()
+	_collect_local_story_files()
+	_collect_synced_story_resources(SYNCED_STORY_ROOT)
 
 	_story_paths.sort()
 	if _story_paths.is_empty():
 		_story_paths.append(DEFAULT_STORY_PATH)
+		_story_labels[DEFAULT_STORY_PATH] = "Local: %s" % DEFAULT_STORY_PATH.get_file()
 
 	for path in _story_paths:
-		story_option.add_item(path.get_file())
+		story_option.add_item(String(_story_labels.get(path, path.get_file())))
 		story_option.set_item_metadata(story_option.item_count - 1, path)
 
 	var selected_index := _story_paths.find(path_edit.text)
@@ -113,6 +110,59 @@ func _refresh_story_list() -> void:
 		selected_index = max(_story_paths.find(DEFAULT_STORY_PATH), 0)
 	story_option.select(selected_index)
 	path_edit.text = _story_paths[selected_index]
+
+func _collect_local_story_files() -> void:
+	var dir := DirAccess.open(STORY_DIR)
+	if dir == null:
+		return
+
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while not file_name.is_empty():
+		if not dir.current_is_dir() and file_name.ends_with(".nrstory"):
+			var path := "%s/%s" % [STORY_DIR, file_name]
+			_story_paths.append(path)
+			_story_labels[path] = "Local: %s" % file_name
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+func _collect_synced_story_resources(root: String) -> void:
+	var dir := DirAccess.open(root)
+	if dir == null:
+		return
+
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while not name.is_empty():
+		var path := "%s/%s" % [root, name]
+		if dir.current_is_dir():
+			if not name.begins_with("."):
+				_collect_synced_story_resources(path)
+		elif name.ends_with(".tres") or name.ends_with(".res"):
+			if _is_story_resource(path):
+				_story_paths.append(path)
+				_story_labels[path] = _synced_story_label(path)
+		name = dir.get_next()
+	dir.list_dir_end()
+
+func _is_story_resource(path: String) -> bool:
+	var resource := ResourceLoader.load(path)
+	if resource == null:
+		return false
+	if not _has_property(resource, "story_data"):
+		return false
+	var story_data = resource.get("story_data")
+	return typeof(story_data) == TYPE_DICTIONARY and not (story_data as Dictionary).is_empty()
+
+func _has_property(resource: Resource, property_name: String) -> bool:
+	for property in resource.get_property_list():
+		if String((property as Dictionary).get("name", "")) == property_name:
+			return true
+	return false
+
+func _synced_story_label(path: String) -> String:
+	var relative := path.trim_prefix(SYNCED_STORY_ROOT + "/")
+	return "Synced: %s" % relative.trim_suffix(".tres").trim_suffix(".res")
 
 func _selected_or_default_path() -> String:
 	if story_option.selected >= 0:

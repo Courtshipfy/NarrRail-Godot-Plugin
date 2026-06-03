@@ -74,6 +74,17 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
   - [x] Can run validation without entering runtime play flow.
   - [x] Tests include invalid fixtures with expected diagnostics.
 
+### NR-GD-002-04 External Story Repository Sync
+- Status: [x]
+- Goal: Sync external `.nrstory` repositories into generated Godot resources.
+- DoD:
+  - [x] Recursively scans an external repository and preserves relative subdirectories under `res://narrrail_stories/<repo_name>/`.
+  - [x] Generates `.tres` resources without copying source `.nrstory` files into the Godot project.
+  - [x] Supports both story files and `meta.configType: GlobalConfig`.
+  - [x] Optional `git pull --ff-only` can run before sync.
+  - [x] Stale generated resources under the managed target can be deleted after editor confirmation.
+  - [x] Headless sync test covers creation, GlobalConfig generation, source path retention, and stale deletion.
+
 ---
 
 ## Milestone M3 - API & Integration
@@ -179,6 +190,7 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - 2026-05-26 - `NR-GD-002-02` - Done by: `agent` - Evidence: Added reimport stability protocol doc `Docs/02_runtime/REIMPORT_STABILITY.md` and confirmed sample runtime consumption path prioritizes imported resource.
 - 2026-05-26 - `NR-GD-003-01` - Done by: `agent` - Evidence: Added runtime API documentation `Docs/03_api/RUNTIME_API.md` (lifecycle methods, signals, usage examples).
 - 2026-05-26 - `NR-GD-003-02` - Done by: `agent` - Evidence: Added UI integration guideline `Docs/03_api/UI_INTEGRATION_GUIDE.md` and aligned standalone VN sample behavior.
+- 2026-06-03 - `NR-GD-002-04` - Done by: `agent` - Evidence: Added `editor/story_repository_sync.gd`, `NarrRailGlobalConfigResource`, editor menu action `NarrRail Sync Stories`, and headless sync runner `tests/sync_repository_runner.gd`; ran `godot --headless --path narrrail-host-project --script res://tests/sync_repository_runner.gd` with `[NarrRail][SyncRepository] PASS`.
 
 - YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
 

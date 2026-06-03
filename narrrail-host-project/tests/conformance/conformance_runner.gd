@@ -21,6 +21,7 @@ func _run() -> void:
 	_run_choice_exhaustive()
 	_run_choice_exhaustive_terminal_return()
 	_run_invalid_choice_exhaustive_completion()
+	_run_set_variable_condition_node()
 	_run_invalid_parser_missing_fields()
 	_run_invalid_validator_refs()
 
@@ -372,6 +373,35 @@ func _run_invalid_choice_exhaustive_completion() -> void:
 	_expect_equal("invalid_choice_exhaustive_completion trace", trace, [])
 	if errors.size() != 1 or not String(errors[0]).contains("Exhaustive choice missing choiceCompletionTargetNodeId on node: N_Choice"):
 		_failures.append("invalid_choice_exhaustive_completion expected completion-target error, got %s" % str(errors))
+
+func _run_set_variable_condition_node() -> void:
+	var story := _load_story("res://tests/conformance/set_variable_condition_node.nrstory")
+	_run_set_variable_condition_path(story, 0, [
+		"CHOICE:N_Choice:2",
+		"VAR:N_Set:Trust:1",
+		"LINE:N_High:0:high",
+		"END"
+	], {"Trust": 1})
+	_run_set_variable_condition_path(story, 1, [
+		"CHOICE:N_Choice:2",
+		"LINE:N_Low:0:low",
+		"END"
+	], {"Trust": 0})
+
+func _run_set_variable_condition_path(story: Dictionary, choice_index: int, expected_trace: Array, expected_variables: Dictionary) -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	session.start(story)
+	session.choose(choice_index)
+	session.next()
+
+	_expect_equal("set_variable_condition_node trace choice %d" % choice_index, trace, expected_trace)
+	_expect_equal("set_variable_condition_node errors choice %d" % choice_index, errors, [])
+	_expect_equal("set_variable_condition_node variables choice %d" % choice_index, session.get_state().get("variables", {}), expected_variables)
 
 func _run_invalid_parser_missing_fields() -> void:
 	var result := _load_story_result("res://tests/conformance/invalid_parser_missing_fields.nrstory")

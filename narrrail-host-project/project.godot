@@ -11,13 +11,17 @@ config_version=5
 [application]
 
 config/name="NarrRail-HostProject"
-run/main_scene="uid://cogpn4f08027g"
+run/main_scene="res://sample/scenes/demo_ui.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/narrrail/plugin.cfg")
+
+[narrrail]
+
+story_repository_path="/Users/courtship/Projects/NarrRailEditor-TestRepo"
 
 [physics]
 

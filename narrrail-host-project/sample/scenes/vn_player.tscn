@@ -10,7 +10,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
-story_path = "uid://uj8yfiuqf3ji"
+story_path = "res://sample/stories/demo.nrstory"
 
 [node name="RootMargin" type="MarginContainer" parent="." unique_id=916466984]
 layout_mode = 1

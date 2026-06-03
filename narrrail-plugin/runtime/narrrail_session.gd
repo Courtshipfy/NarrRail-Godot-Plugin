@@ -12,6 +12,7 @@ const STATE_IDLE := "idle"
 const STATE_RUNNING := "running"
 const STATE_WAITING_CHOICE := "waiting_choice"
 const STATE_ENDED := "ended"
+const STORY_MODEL_SCRIPT := "res://addons/narrrail/runtime/story_model.gd"
 
 var _story: Dictionary = {}
 var _node_by_id: Dictionary = {}
@@ -27,7 +28,12 @@ var _current_choices: Array = []
 var _current_line_index: int = -1
 
 func start(story_data: Dictionary) -> void:
-	var check := NarrRailStoryModel.validate_minimal(story_data)
+	var model_script: Script = load(STORY_MODEL_SCRIPT)
+	if model_script == null:
+		_emit_error("Failed to load story model script: %s" % STORY_MODEL_SCRIPT)
+		return
+
+	var check: Dictionary = model_script.call("validate_minimal", story_data)
 	if not check.get("ok", false):
 		_emit_error("Story validation failed: %s" % "; ".join(check.get("errors", [])))
 		return
@@ -189,6 +195,22 @@ func _enter_node(node_id: String) -> void:
 				_emit_error(String(leave_check.get("error", "Unknown jump exit action error")))
 				return
 			_enter_node(target)
+		"SetVariable":
+			var set_check := _execute_actions(node.get("actions", []), "node", node_id)
+			if not set_check.get("ok", false):
+				_emit_error(String(set_check.get("error", "Unknown SetVariable action error")))
+				return
+			_move_to_next_by_edges(node_id)
+		"Condition":
+			var condition_check := _resolve_condition_node_target(node)
+			if not condition_check.get("ok", false):
+				_emit_error(String(condition_check.get("error", "Unknown Condition node error")))
+				return
+			var condition_target := String(condition_check.get("targetNodeId", ""))
+			if condition_target.is_empty():
+				_finish()
+				return
+			_enter_node(condition_target)
 		"End":
 			_finish()
 		_:
@@ -276,7 +298,7 @@ func _initialize_variables() -> Dictionary:
 		if type_name.is_empty():
 			return {"ok": false, "error": "Unsupported variable type for %s: %s" % [name, String(variable.get("type", ""))]}
 
-		var parsed := _parse_value_for_type(variable.get("defaultValue", null), type_name)
+		var parsed := _parse_value_for_type(_default_value_for_variable(variable, type_name), type_name)
 		if not parsed.get("ok", false):
 			return {"ok": false, "error": "Invalid defaultValue for %s: %s" % [name, String(parsed.get("error", "unknown"))]}
 
@@ -383,7 +405,7 @@ func _condition_true(condition: Dictionary) -> Dictionary:
 
 func _condition_term_true(term: Dictionary) -> Dictionary:
 	var variable_ref: Dictionary = term.get("variable", {})
-	var name := String(variable_ref.get("name", ""))
+	var name := _variable_ref_name(variable_ref)
 	if name.is_empty():
 		return {"ok": false, "value": false, "error": "Condition term has empty variable name"}
 	if not _variable_defs.has(name):
@@ -391,8 +413,8 @@ func _condition_term_true(term: Dictionary) -> Dictionary:
 
 	var def: Dictionary = _variable_defs[name]
 	var type_name := String(def.get("type", ""))
-	var ref_type := _normalize_variable_type(String(variable_ref.get("type", type_name)))
-	if ref_type != type_name:
+	var ref_type := _variable_ref_type(variable_ref)
+	if not ref_type.is_empty() and ref_type != type_name:
 		return {
 			"ok": false,
 			"value": false,
@@ -459,6 +481,36 @@ func _parse_value_for_type(raw_value, type_name: String) -> Dictionary:
 			return {"ok": true, "value": String(raw_value), "error": ""}
 
 	return {"ok": false, "value": null, "error": "Unsupported variable type: %s" % type_name}
+
+func _default_value_for_variable(variable: Dictionary, type_name: String):
+	if variable.has("defaultValue"):
+		return variable.get("defaultValue")
+	match type_name:
+		"Bool":
+			if variable.has("boolValue"):
+				return variable.get("boolValue")
+		"Int":
+			if variable.has("intValue"):
+				return variable.get("intValue")
+		"Float":
+			if variable.has("floatValue"):
+				return variable.get("floatValue")
+		"String":
+			if variable.has("stringValue"):
+				return variable.get("stringValue")
+	return null
+
+func _variable_ref_name(variable_ref: Dictionary) -> String:
+	var name := String(variable_ref.get("name", ""))
+	if name.is_empty():
+		name = String(variable_ref.get("variableName", ""))
+	return name
+
+func _variable_ref_type(variable_ref: Dictionary) -> String:
+	var raw_type := String(variable_ref.get("type", ""))
+	if raw_type.is_empty():
+		raw_type = String(variable_ref.get("variableType", ""))
+	return _normalize_variable_type(raw_type)
 
 func _compare_values(left_value, right_value, type_name: String, op: String) -> Dictionary:
 	match type_name:
@@ -528,7 +580,7 @@ func _execute_action(action: Dictionary, phase: String, node_id: String) -> Dict
 
 func _execute_variable_action(action: Dictionary, phase: String, node_id: String, action_type: String) -> Dictionary:
 	var variable_ref: Dictionary = action.get("variable", {})
-	var name := String(variable_ref.get("name", ""))
+	var name := _variable_ref_name(variable_ref)
 	if name.is_empty():
 		return {"ok": false, "error": "%s action has empty variable name on node %s" % [action_type, node_id]}
 	if not _variable_defs.has(name):
@@ -536,8 +588,8 @@ func _execute_variable_action(action: Dictionary, phase: String, node_id: String
 
 	var def: Dictionary = _variable_defs[name]
 	var type_name := String(def.get("type", ""))
-	var ref_type := _normalize_variable_type(String(variable_ref.get("type", type_name)))
-	if ref_type != type_name:
+	var ref_type := _variable_ref_type(variable_ref)
+	if variable_ref.has("type") and not ref_type.is_empty() and ref_type != type_name:
 		return {
 			"ok": false,
 			"error": "%s action variable type mismatch for %s on node %s: expected %s got %s" % [
@@ -602,6 +654,35 @@ func _execute_emit_event_action(action: Dictionary, phase: String, node_id: Stri
 	_emitted_events.append(payload)
 	event_emitted.emit(payload)
 	return {"ok": true, "error": ""}
+
+func _resolve_condition_node_target(node: Dictionary) -> Dictionary:
+	var node_id := String(node.get("nodeId", ""))
+	var condition_data: Dictionary = node.get("condition", {})
+	var branches: Array = condition_data.get("branches", [])
+	for i in range(branches.size()):
+		var branch: Dictionary = branches[i]
+		var check := _condition_true(branch)
+		if not check.get("ok", false):
+			return {"ok": false, "targetNodeId": "", "error": "Condition branch failed on node %s at index %d: %s" % [
+				node_id,
+				i,
+				String(check.get("error", "unknown"))
+			]}
+		if bool(check.get("value", false)):
+			return _target_for_source_handle(node_id, "condition-%d" % i)
+
+	var fallback := _target_for_source_handle(node_id, "condition-fallback")
+	if fallback.get("ok", false):
+		return fallback
+	return {"ok": true, "targetNodeId": "", "error": ""}
+
+func _target_for_source_handle(source_node_id: String, source_handle: String) -> Dictionary:
+	var edges: Array = _out_edges.get(source_node_id, [])
+	for edge in edges:
+		var e: Dictionary = edge
+		if String(e.get("sourceHandle", "")) == source_handle:
+			return {"ok": true, "targetNodeId": String(e.get("targetNodeId", "")), "error": ""}
+	return {"ok": false, "targetNodeId": "", "error": "No edge found from %s with sourceHandle: %s" % [source_node_id, source_handle]}
 
 func _finish() -> void:
 	if _return_to_exhaustive_choice_if_needed():

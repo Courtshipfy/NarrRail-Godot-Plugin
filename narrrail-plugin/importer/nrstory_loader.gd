@@ -190,25 +190,15 @@ class _YamlParser:
 		return s
 
 static func load_story(path: String) -> Dictionary:
-	if not FileAccess.file_exists(path):
-		return _fail([
-			_diag("error", "FILE_NOT_FOUND", "$", "Story file not found: %s" % path, -1)
-		])
-
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return _fail([
-			_diag("error", "FILE_OPEN_FAILED", "$", "Failed to open story file: %s" % path, -1)
-		])
-
-	var content := file.get_as_text()
-	file.close()
-
-	var parsed := _parse_yaml_or_json(content)
+	var parsed := load_document(path)
 	if not parsed.get("ok", false):
 		return parsed
 
-	var story: Dictionary = parsed.get("story", {})
+	var story: Dictionary = parsed.get("data", {})
+	if detect_file_kind(story) != "Story":
+		return _fail([
+			_diag("error", "FILE_KIND_INVALID", "$", "Expected story .nrstory but got: %s" % detect_file_kind(story), -1)
+		])
 	var diagnostics: Array = _validate_story_shape(story)
 	diagnostics.append_array(_validate_schema_version(story))
 
@@ -227,6 +217,67 @@ static func load_story(path: String) -> Dictionary:
 		"error": "",
 		"diagnostics": diagnostics
 	}
+
+static func load_global_config(path: String) -> Dictionary:
+	var parsed := load_document(path)
+	if not parsed.get("ok", false):
+		return parsed
+
+	var config: Dictionary = parsed.get("data", {})
+	if detect_file_kind(config) != "GlobalConfig":
+		return _fail([
+			_diag("error", "FILE_KIND_INVALID", "$", "Expected GlobalConfig .nrstory but got: %s" % detect_file_kind(config), -1)
+		])
+
+	var diagnostics: Array = _validate_global_config_shape(config)
+	if _has_errors(diagnostics):
+		return _fail(diagnostics)
+
+	return {
+		"ok": true,
+		"config": config,
+		"error": "",
+		"diagnostics": diagnostics
+	}
+
+static func load_document(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return _fail([
+			_diag("error", "FILE_NOT_FOUND", "$", "Story file not found: %s" % path, -1)
+		])
+
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return _fail([
+			_diag("error", "FILE_OPEN_FAILED", "$", "Failed to open story file: %s" % path, -1)
+		])
+
+	var content := file.get_as_text()
+	file.close()
+
+	var parsed := _parse_yaml_or_json(content)
+	if not parsed.get("ok", false):
+		return parsed
+
+	return {
+		"ok": true,
+		"data": parsed.get("story", {}),
+		"kind": detect_file_kind(parsed.get("story", {})),
+		"error": "",
+		"diagnostics": []
+	}
+
+static func detect_file_kind(data: Dictionary) -> String:
+	var meta: Dictionary = data.get("meta", {})
+	if typeof(meta) == TYPE_DICTIONARY:
+		var config_type := String(meta.get("configType", ""))
+		if config_type.to_lower() == "globalconfig":
+			return "GlobalConfig"
+		if meta.has("storyId"):
+			return "Story"
+	if data.has("nodes") or data.has("edges"):
+		return "Story"
+	return "Unknown"
 
 static func _parse_yaml_or_json(content: String) -> Dictionary:
 	var yaml_parser := _YamlParser.new()
@@ -309,6 +360,29 @@ static func _validate_schema_version(story: Dictionary) -> Array:
 		diagnostics.append(_diag("error", "SCHEMA_UNSUPPORTED", "meta.schemaVersion", "Unsupported future schemaVersion: %d (supported <= %d)" % [version, SUPPORTED_SCHEMA_VERSION], -1))
 	elif version < SUPPORTED_SCHEMA_VERSION:
 		diagnostics.append(_diag("warning", "SCHEMA_OLDER", "meta.schemaVersion", "Older schemaVersion: %d (current: %d). Migration is not implemented yet." % [version, SUPPORTED_SCHEMA_VERSION], -1))
+
+	return diagnostics
+
+static func _validate_global_config_shape(config: Dictionary) -> Array:
+	var diagnostics: Array = []
+	var meta = config.get("meta", {})
+	if typeof(meta) != TYPE_DICTIONARY:
+		diagnostics.append(_diag("error", "MISSING_FIELD", "meta", "Missing required field: meta", -1))
+		return diagnostics
+
+	if not meta.has("schemaVersion"):
+		diagnostics.append(_diag("error", "MISSING_FIELD", "meta.schemaVersion", "Missing required field: meta.schemaVersion", -1))
+	elif typeof(meta.get("schemaVersion")) != TYPE_INT:
+		diagnostics.append(_diag("error", "TYPE_MISMATCH", "meta.schemaVersion", "schemaVersion must be int", -1))
+
+	if String(meta.get("configType", "")).to_lower() != "globalconfig":
+		diagnostics.append(_diag("error", "CONFIG_TYPE_INVALID", "meta.configType", "meta.configType must be GlobalConfig", -1))
+
+	if config.has("variables") and typeof(config.get("variables")) != TYPE_ARRAY:
+		diagnostics.append(_diag("error", "TYPE_MISMATCH", "variables", "variables must be an array", -1))
+
+	if config.has("presetSpeakers") and typeof(config.get("presetSpeakers")) != TYPE_ARRAY:
+		diagnostics.append(_diag("error", "TYPE_MISMATCH", "presetSpeakers", "presetSpeakers must be an array", -1))
 
 	return diagnostics
 

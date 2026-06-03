@@ -1,0 +1,94 @@
+meta:
+  schemaVersion: 1
+  storyId: set_variable_condition_node
+  entryNodeId: N_Choice
+
+variables:
+  - name: Trust
+    type: Int
+    intValue: 0
+
+nodes:
+  - nodeId: N_Choice
+    nodeType: Choice
+    choices:
+      - textKey: gain
+        targetNodeId: N_Set
+      - textKey: skip
+        targetNodeId: N_Check
+
+  - nodeId: N_Set
+    nodeType: SetVariable
+    actions:
+      - actionType: Add
+        variable:
+          variableName: Trust
+          variableType: String
+        value: "1"
+
+  - nodeId: N_Check
+    nodeType: Condition
+    condition:
+      branches:
+        - label: high
+          logic: All
+          terms:
+            - variable:
+                name: Trust
+                type: Int
+              operator: ">="
+              compareValue: "1"
+        - label: low
+          logic: All
+          terms:
+            - variable:
+                name: Trust
+                type: Int
+              operator: "<"
+              compareValue: "1"
+
+  - nodeId: N_High
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: high
+
+  - nodeId: N_Low
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: low
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Set
+    targetNodeId: N_Check
+    priority: 0
+    sourceHandle: ""
+
+  - sourceNodeId: N_Check
+    targetNodeId: N_High
+    priority: 0
+    sourceHandle: condition-0
+
+  - sourceNodeId: N_Check
+    targetNodeId: N_Low
+    priority: 0
+    sourceHandle: condition-1
+
+  - sourceNodeId: N_Check
+    targetNodeId: N_End
+    priority: 0
+    sourceHandle: condition-fallback
+
+  - sourceNodeId: N_High
+    targetNodeId: N_End
+    priority: 0
+    sourceHandle: ""
+
+  - sourceNodeId: N_Low
+    targetNodeId: N_End
+    priority: 0
+    sourceHandle: ""
