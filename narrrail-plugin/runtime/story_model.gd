@@ -109,7 +109,7 @@ static func _validate_node_actions(node: Dictionary, variable_names: Dictionary,
 			match action_type:
 				"Set", "Add", "Subtract":
 					var variable: Dictionary = action.get("variable", {})
-					var name := String(variable.get("name", ""))
+					var name := _variable_ref_name(variable)
 					if name.is_empty():
 						errors.append("%s action has empty variable name on node: %s" % [action_type, node_id])
 					elif not variable_names.has(name):
@@ -121,3 +121,9 @@ static func _validate_node_actions(node: Dictionary, variable_names: Dictionary,
 						errors.append("EmitEvent action missing eventId on node: %s" % node_id)
 				_:
 					errors.append("Unsupported actionType on node %s: %s" % [node_id, action_type])
+
+static func _variable_ref_name(variable_ref: Dictionary) -> String:
+	var name := String(variable_ref.get("name", ""))
+	if name.is_empty():
+		name = String(variable_ref.get("variableName", ""))
+	return name

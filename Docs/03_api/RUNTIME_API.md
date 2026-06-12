@@ -58,6 +58,44 @@ Returns current runtime snapshot:
 - `exhaustedChoiceTargets`
 - `exhaustiveChoiceStack`
 
+### `create_save_snapshot() -> Dictionary`
+
+Export a versioned save snapshot for the current session.
+
+The snapshot includes:
+- `saveSchemaVersion`
+- story identity (`schemaVersion`, `storyId`)
+- current state and node position
+- current line index
+- variables
+- emitted event history
+- exhaustive-choice runtime bookkeeping
+
+The snapshot does not embed full story data. Game code should store the story path or resource ID alongside the snapshot.
+
+### `restore_save_snapshot(story_data: Dictionary, snapshot: Dictionary) -> bool`
+
+Restore a session from a snapshot using the supplied story data.
+
+Behavior:
+- validates save schema version and story identity
+- validates the supplied story data before applying runtime state
+- restores variables, event history, current node, line index, choices, and exhaustive-choice bookkeeping
+- emits the current presentation signal after restore (`line_changed`, `choices_changed`, or `ended`)
+
+Failure:
+- emits `error_raised(message)`
+- returns `false`
+
+Game-side save files should usually store:
+
+```gdscript
+{
+    "storyPath": "res://sample/stories/demo.nrstory",
+    "snapshot": session.create_save_snapshot()
+}
+```
+
 ## Signals (Callback/Event Subscription)
 
 ### `line_changed(payload: Dictionary)`

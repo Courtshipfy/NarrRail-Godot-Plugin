@@ -5,11 +5,14 @@ const STORY_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/story_resou
 const STORY_DIR := "res://sample/stories"
 const SYNCED_STORY_ROOT := "res://narrrail_stories"
 const DEFAULT_STORY_PATH := "res://sample/stories/demo.nrstory"
+const SAVE_PATH := "user://narrrail_demo_save.json"
 
 @onready var story_option: OptionButton = $Panel/Margin/VBox/StoryBar/StoryOption
 @onready var path_edit: LineEdit = $Panel/Margin/VBox/StoryBar/PathEdit
 @onready var load_button: Button = $Panel/Margin/VBox/StoryBar/LoadButton
 @onready var refresh_button: Button = $Panel/Margin/VBox/StoryBar/RefreshButton
+@onready var save_button: Button = $Panel/Margin/VBox/BottomBar/SaveButton
+@onready var load_save_button: Button = $Panel/Margin/VBox/BottomBar/LoadSaveButton
 @onready var speaker_label: Label = $Panel/Margin/VBox/SpeakerLabel
 @onready var text_label: Label = $Panel/Margin/VBox/TextLabel
 @onready var choices_box: VBoxContainer = $Panel/Margin/VBox/ChoicesBox
@@ -24,6 +27,8 @@ func _ready() -> void:
 	next_button.pressed.connect(_on_next_pressed)
 	load_button.pressed.connect(_on_load_pressed)
 	refresh_button.pressed.connect(_on_refresh_pressed)
+	save_button.pressed.connect(_on_save_pressed)
+	load_save_button.pressed.connect(_on_load_save_pressed)
 	story_option.item_selected.connect(_on_story_selected)
 	path_edit.text_submitted.connect(func(_text: String) -> void:
 		_on_load_pressed()
@@ -61,12 +66,7 @@ func _load_story_path(path: String) -> void:
 		_push_status("Running: %s" % path)
 
 func _load_story_from_path_or_fallback(path: String) -> Dictionary:
-	var loader_script: Script = load(STORY_RESOURCE_LOADER_SCRIPT)
-	if loader_script == null:
-		_push_status("Story resource loader missing, fallback to built-in story")
-		return _build_demo_story()
-
-	var result: Dictionary = loader_script.call("load_story", path)
+	var result := _load_story_result(path)
 	if not result.get("ok", false):
 		_push_status("Load failed, fallback: %s" % _format_diagnostics(result))
 		return _build_demo_story()
@@ -78,6 +78,27 @@ func _load_story_from_path_or_fallback(path: String) -> Dictionary:
 		_push_status("Loaded: %s" % path)
 
 	return result.get("story", {})
+
+func _load_story_strict(path: String) -> Dictionary:
+	var result := _load_story_result(path)
+	if not result.get("ok", false):
+		_push_status("Load failed: %s" % _format_diagnostics(result))
+		return {}
+
+	var diagnostics: Array = result.get("diagnostics", [])
+	if not diagnostics.is_empty():
+		_push_status("Loaded with diagnostics: %s" % _format_diagnostics(result))
+	else:
+		_push_status("Loaded: %s" % path)
+	return result.get("story", {})
+
+func _load_story_result(path: String) -> Dictionary:
+	var loader_script: Script = load(STORY_RESOURCE_LOADER_SCRIPT)
+	if loader_script == null:
+		return {"ok": false, "story": {}, "error": "Story resource loader missing", "diagnostics": []}
+
+	var result: Dictionary = loader_script.call("load_story", path)
+	return result
 
 func _refresh_story_list() -> void:
 	_story_paths.clear()
@@ -238,6 +259,53 @@ func _on_next_pressed() -> void:
 	if _session != null:
 		_session.next()
 
+func _on_save_pressed() -> void:
+	if _session == null:
+		_push_status("No session to save")
+		return
+
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		_push_status("Save failed: %s" % error_string(FileAccess.get_open_error()))
+		return
+
+	var payload := {
+		"storyPath": path_edit.text.strip_edges(),
+		"snapshot": _session.create_save_snapshot()
+	}
+	file.store_string(JSON.stringify(payload, "\t"))
+	_push_status("Saved: %s" % SAVE_PATH)
+
+func _on_load_save_pressed() -> void:
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		_push_status("Load save failed: %s" % error_string(FileAccess.get_open_error()))
+		return
+
+	var parsed = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		_push_status("Load save failed: invalid JSON")
+		return
+
+	var payload: Dictionary = parsed
+	var save_path := String(payload.get("storyPath", DEFAULT_STORY_PATH))
+	var snapshot = payload.get("snapshot", {})
+	if typeof(snapshot) != TYPE_DICTIONARY:
+		_push_status("Load save failed: missing snapshot")
+		return
+
+	_clear_story_view()
+	path_edit.text = save_path
+	_select_story_path_if_available(save_path)
+	if not _create_session():
+		return
+
+	var story := _load_story_strict(save_path)
+	if story.is_empty():
+		return
+	if _session.restore_save_snapshot(story, snapshot):
+		_push_status("Loaded save: %s" % save_path)
+
 func _on_load_pressed() -> void:
 	_load_story_path(path_edit.text.strip_edges())
 
@@ -252,6 +320,12 @@ func _on_story_selected(index: int) -> void:
 	var path := String(story_option.get_item_metadata(index))
 	path_edit.text = path
 	_load_story_path(path)
+
+func _select_story_path_if_available(path: String) -> void:
+	for i in range(story_option.item_count):
+		if String(story_option.get_item_metadata(i)) == path:
+			story_option.select(i)
+			return
 
 func _clear_choices() -> void:
 	for child in choices_box.get_children():

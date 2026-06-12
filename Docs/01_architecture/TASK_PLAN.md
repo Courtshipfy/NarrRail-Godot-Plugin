@@ -130,19 +130,19 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M5 - Save/Load
 
 ### NR-GD-005-01 Session Snapshot Model
-- Status: [ ]
+- Status: [x]
 - Goal: Define save payload for session position + variables + essential history.
 - DoD:
-  - [ ] Snapshot schema documented and versioned.
-  - [ ] Backward compatibility strategy defined.
+  - [x] Snapshot schema documented and versioned.
+  - [x] Backward compatibility strategy defined.
 
 ### NR-GD-005-02 Save/Load API
-- Status: [ ]
+- Status: [x]
 - Goal: Implement export/import of session state.
 - DoD:
-  - [ ] Restore returns identical continuation behavior.
-  - [ ] Corrupted/incompatible save handling is safe.
-  - [ ] Tests verify resume equivalence.
+  - [x] Restore returns identical continuation behavior.
+  - [x] Corrupted/incompatible save handling is safe.
+  - [x] Tests verify resume equivalence.
 
 ---
 
@@ -191,6 +191,8 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - 2026-05-26 - `NR-GD-003-01` - Done by: `agent` - Evidence: Added runtime API documentation `Docs/03_api/RUNTIME_API.md` (lifecycle methods, signals, usage examples).
 - 2026-05-26 - `NR-GD-003-02` - Done by: `agent` - Evidence: Added UI integration guideline `Docs/03_api/UI_INTEGRATION_GUIDE.md` and aligned standalone VN sample behavior.
 - 2026-06-03 - `NR-GD-002-04` - Done by: `agent` - Evidence: Added `editor/story_repository_sync.gd`, `NarrRailGlobalConfigResource`, editor menu action `NarrRail Sync Stories`, and headless sync runner `tests/sync_repository_runner.gd`; ran `godot --headless --path narrrail-host-project --script res://tests/sync_repository_runner.gd` with `[NarrRail][SyncRepository] PASS`.
+- 2026-06-13 - `NR-GD-005-01` / `NR-GD-005-02` - Done by: `agent` - Evidence: Added versioned session save snapshots and restore API in `narrrail_session.gd`; sample `demo_ui` and `vn_player` save/load `user://narrrail_demo_save.json`; conformance runner covers waiting-choice and MultiDialogue resume; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
+- 2026-06-13 - `NR-GD-005-02` - Fix by: `agent` - Evidence: Added cross-story restore coverage and `tests/save_load_smoke_runner.gd` for the sample UI flow `load story A -> save -> load story B -> load save`; read-save path now loads strictly instead of falling back to demo data; ran smoke with `[NarrRail][SaveLoadSmoke] PASS`.
 
 - YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
 

@@ -13,6 +13,7 @@ const STATE_RUNNING := "running"
 const STATE_WAITING_CHOICE := "waiting_choice"
 const STATE_ENDED := "ended"
 const STORY_MODEL_SCRIPT := "res://addons/narrrail/runtime/story_model.gd"
+const SAVE_SCHEMA_VERSION := 1
 
 var _story: Dictionary = {}
 var _node_by_id: Dictionary = {}
@@ -121,6 +122,48 @@ func get_state() -> Dictionary:
 		"exhaustiveChoiceStack": _exhaustive_choice_stack.duplicate(true)
 	}
 
+func create_save_snapshot() -> Dictionary:
+	return {
+		"saveSchemaVersion": SAVE_SCHEMA_VERSION,
+		"story": {
+			"schemaVersion": int(_story.get("meta", {}).get("schemaVersion", 0)),
+			"storyId": String(_story.get("meta", {}).get("storyId", ""))
+		},
+		"session": get_state()
+	}
+
+func restore_save_snapshot(story_data: Dictionary, snapshot: Dictionary) -> bool:
+	var snapshot_check := _validate_save_snapshot(story_data, snapshot)
+	if not snapshot_check.get("ok", false):
+		_emit_error(String(snapshot_check.get("error", "Invalid save snapshot")))
+		return false
+
+	var model_script: Script = load(STORY_MODEL_SCRIPT)
+	if model_script == null:
+		_emit_error("Failed to load story model script: %s" % STORY_MODEL_SCRIPT)
+		return false
+
+	var check: Dictionary = model_script.call("validate_minimal", story_data)
+	if not check.get("ok", false):
+		_emit_error("Story validation failed: %s" % "; ".join(check.get("errors", [])))
+		return false
+
+	_story = story_data
+	_build_indexes()
+	var variables_check := _initialize_variables()
+	if not variables_check.get("ok", false):
+		_emit_error("Variable initialization failed: %s" % String(variables_check.get("error", "unknown")))
+		return false
+
+	var session_data: Dictionary = snapshot.get("session", {})
+	var apply_check := _apply_save_session_data(session_data)
+	if not apply_check.get("ok", false):
+		_emit_error(String(apply_check.get("error", "Invalid save session data")))
+		return false
+
+	_emit_restored_presentation()
+	return true
+
 func _build_indexes() -> void:
 	_node_by_id.clear()
 	_out_edges.clear()
@@ -215,6 +258,109 @@ func _enter_node(node_id: String) -> void:
 			_finish()
 		_:
 			_emit_error("Unsupported nodeType in MVP: %s" % node_type)
+
+func _validate_save_snapshot(story_data: Dictionary, snapshot: Dictionary) -> Dictionary:
+	if int(snapshot.get("saveSchemaVersion", 0)) != SAVE_SCHEMA_VERSION:
+		return {"ok": false, "error": "Unsupported saveSchemaVersion: %s" % String(snapshot.get("saveSchemaVersion", ""))}
+	if not snapshot.has("story") or typeof(snapshot.get("story")) != TYPE_DICTIONARY:
+		return {"ok": false, "error": "Save snapshot missing story metadata"}
+	if not snapshot.has("session") or typeof(snapshot.get("session")) != TYPE_DICTIONARY:
+		return {"ok": false, "error": "Save snapshot missing session data"}
+
+	var save_story: Dictionary = snapshot.get("story", {})
+	var story_meta: Dictionary = story_data.get("meta", {})
+	var save_schema_version := int(save_story.get("schemaVersion", 0))
+	var story_schema_version := int(story_meta.get("schemaVersion", 0))
+	if save_schema_version != story_schema_version:
+		return {"ok": false, "error": "Save story schemaVersion mismatch: expected %d got %d" % [story_schema_version, save_schema_version]}
+
+	var save_story_id := String(save_story.get("storyId", ""))
+	var story_id := String(story_meta.get("storyId", ""))
+	if not save_story_id.is_empty() and not story_id.is_empty() and save_story_id != story_id:
+		return {"ok": false, "error": "Save storyId mismatch: expected %s got %s" % [story_id, save_story_id]}
+
+	return {"ok": true, "error": ""}
+
+func _apply_save_session_data(session_data: Dictionary) -> Dictionary:
+	var restored_state := String(session_data.get("state", ""))
+	if not [STATE_RUNNING, STATE_WAITING_CHOICE, STATE_ENDED].has(restored_state):
+		return {"ok": false, "error": "Unsupported saved session state: %s" % restored_state}
+
+	var restored_node_id := String(session_data.get("currentNodeId", ""))
+	if restored_state != STATE_ENDED and not _node_by_id.has(restored_node_id):
+		return {"ok": false, "error": "Saved currentNodeId not found: %s" % restored_node_id}
+
+	var variables = session_data.get("variables", {})
+	if typeof(variables) != TYPE_DICTIONARY:
+		return {"ok": false, "error": "Saved variables must be a Dictionary"}
+	for name in variables.keys():
+		var variable_name := String(name)
+		if not _variable_defs.has(variable_name):
+			return {"ok": false, "error": "Saved variable not defined by story: %s" % variable_name}
+		var def: Dictionary = _variable_defs[variable_name]
+		var parsed := _parse_value_for_type(variables[name], String(def.get("type", "")))
+		if not parsed.get("ok", false):
+			return {"ok": false, "error": "Saved variable invalid for %s: %s" % [variable_name, String(parsed.get("error", "unknown"))]}
+		_variables[variable_name] = parsed.get("value")
+
+	var restored_events = session_data.get("events", [])
+	if typeof(restored_events) != TYPE_ARRAY:
+		return {"ok": false, "error": "Saved events must be an Array"}
+	var restored_exhausted = session_data.get("exhaustedChoiceTargets", {})
+	if typeof(restored_exhausted) != TYPE_DICTIONARY:
+		return {"ok": false, "error": "Saved exhaustedChoiceTargets must be a Dictionary"}
+	var restored_stack = session_data.get("exhaustiveChoiceStack", [])
+	if typeof(restored_stack) != TYPE_ARRAY:
+		return {"ok": false, "error": "Saved exhaustiveChoiceStack must be an Array"}
+
+	_state = restored_state
+	_current_node_id = restored_node_id
+	_current_line_index = int(session_data.get("currentLineIndex", -1))
+	_emitted_events = (restored_events as Array).duplicate(true)
+	_exhausted_choice_targets = (restored_exhausted as Dictionary).duplicate(true)
+	_exhaustive_choice_stack.clear()
+	for item in restored_stack:
+		_exhaustive_choice_stack.append(String(item))
+	_current_choices.clear()
+
+	if _state == STATE_WAITING_CHOICE:
+		var node: Dictionary = _node_by_id.get(_current_node_id, {})
+		if String(node.get("nodeType", "")) != "Choice":
+			return {"ok": false, "error": "Saved waiting_choice state is not on a Choice node: %s" % _current_node_id}
+		var choices_check := _get_available_choices(node)
+		if not choices_check.get("ok", false):
+			return {"ok": false, "error": String(choices_check.get("error", "Unknown choice restore error"))}
+		_current_choices = (choices_check.get("choices", []) as Array).duplicate(true)
+
+	return {"ok": true, "error": ""}
+
+func _emit_restored_presentation() -> void:
+	match _state:
+		STATE_WAITING_CHOICE:
+			choices_changed.emit(_current_choices.duplicate(true))
+		STATE_RUNNING:
+			_emit_current_line_after_restore()
+		STATE_ENDED:
+			ended.emit()
+
+func _emit_current_line_after_restore() -> void:
+	if not _node_by_id.has(_current_node_id):
+		return
+	var node: Dictionary = _node_by_id[_current_node_id]
+	var node_type := String(node.get("nodeType", ""))
+	match node_type:
+		"Dialogue":
+			var dialogue: Dictionary = node.get("dialogue", {})
+			line_changed.emit({
+				"nodeId": _current_node_id,
+				"lineIndex": 0,
+				"speakerId": String(dialogue.get("speakerId", "")),
+				"textKey": String(dialogue.get("textKey", ""))
+			})
+		"MultiDialogue":
+			var emit_check := _emit_multi_dialogue_line(node)
+			if not emit_check.get("ok", false):
+				_emit_error(String(emit_check.get("error", "Unknown MultiDialogue restore error")))
 
 func _move_to_next_by_edges(source_node_id: String) -> void:
 	var edges: Array = _out_edges.get(source_node_id, [])
@@ -457,28 +603,30 @@ func _parse_value_for_type(raw_value, type_name: String) -> Dictionary:
 		"Bool":
 			if typeof(raw_value) == TYPE_BOOL:
 				return {"ok": true, "value": raw_value, "error": ""}
-			var bool_text := String(raw_value).to_lower()
+			var bool_text := str(raw_value).to_lower()
 			if bool_text == "true":
 				return {"ok": true, "value": true, "error": ""}
 			if bool_text == "false":
 				return {"ok": true, "value": false, "error": ""}
-			return {"ok": false, "value": false, "error": "Expected Bool but got %s" % String(raw_value)}
+			return {"ok": false, "value": false, "error": "Expected Bool but got %s" % str(raw_value)}
 		"Int":
 			if typeof(raw_value) == TYPE_INT:
 				return {"ok": true, "value": raw_value, "error": ""}
-			var int_text := String(raw_value)
+			if typeof(raw_value) == TYPE_FLOAT and float(raw_value) == floor(float(raw_value)):
+				return {"ok": true, "value": int(raw_value), "error": ""}
+			var int_text := str(raw_value)
 			if int_text.is_valid_int():
 				return {"ok": true, "value": int(int_text), "error": ""}
-			return {"ok": false, "value": 0, "error": "Expected Int but got %s" % String(raw_value)}
+			return {"ok": false, "value": 0, "error": "Expected Int but got %s" % str(raw_value)}
 		"Float":
 			if typeof(raw_value) == TYPE_FLOAT or typeof(raw_value) == TYPE_INT:
 				return {"ok": true, "value": float(raw_value), "error": ""}
-			var float_text := String(raw_value)
+			var float_text := str(raw_value)
 			if float_text.is_valid_float():
 				return {"ok": true, "value": float(float_text), "error": ""}
-			return {"ok": false, "value": 0.0, "error": "Expected Float but got %s" % String(raw_value)}
+			return {"ok": false, "value": 0.0, "error": "Expected Float but got %s" % str(raw_value)}
 		"String":
-			return {"ok": true, "value": String(raw_value), "error": ""}
+			return {"ok": true, "value": str(raw_value), "error": ""}
 
 	return {"ok": false, "value": null, "error": "Unsupported variable type: %s" % type_name}
 

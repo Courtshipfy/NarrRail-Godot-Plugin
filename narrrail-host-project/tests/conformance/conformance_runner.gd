@@ -22,6 +22,9 @@ func _run() -> void:
 	_run_choice_exhaustive_terminal_return()
 	_run_invalid_choice_exhaustive_completion()
 	_run_set_variable_condition_node()
+	_run_save_restore_waiting_choice()
+	_run_save_restore_multi_dialogue()
+	_run_save_restore_after_other_story()
 	_run_invalid_parser_missing_fields()
 	_run_invalid_validator_refs()
 
@@ -402,6 +405,112 @@ func _run_set_variable_condition_path(story: Dictionary, choice_index: int, expe
 	_expect_equal("set_variable_condition_node trace choice %d" % choice_index, trace, expected_trace)
 	_expect_equal("set_variable_condition_node errors choice %d" % choice_index, errors, [])
 	_expect_equal("set_variable_condition_node variables choice %d" % choice_index, session.get_state().get("variables", {}), expected_variables)
+
+func _run_save_restore_waiting_choice() -> void:
+	var before_trace: Array = []
+	var before_errors: Array = []
+	var story := _load_story("res://tests/conformance/choice_exhaustive.nrstory")
+	var before_session := _new_session(before_trace, before_errors)
+	if before_session == null:
+		return
+
+	before_session.start(story)
+	before_session.choose(0)
+	before_session.next()
+	var snapshot: Dictionary = before_session.create_save_snapshot()
+
+	var trace: Array = []
+	var errors: Array = []
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	var restored: bool = session.restore_save_snapshot(story, snapshot)
+	_expect_equal("save_restore_waiting_choice restored", restored, true)
+	session.choose(0)
+	session.next()
+	session.next()
+
+	_expect_equal("save_restore_waiting_choice trace", trace, [
+		"CHOICE:N_Choice:1",
+		"EVENT:N_Choice:exit:choice_exit",
+		"LINE:N_B:0:branch_b",
+		"EVENT:N_Choice:exit:choice_exit",
+		"LINE:N_Complete:0:complete",
+		"END"
+	])
+	_expect_equal("save_restore_waiting_choice errors", errors, [])
+	_expect_equal("save_restore_waiting_choice exhausted targets", session.get_state().get("exhaustedChoiceTargets", {}), {
+		"N_Choice": {
+			"N_A": true,
+			"N_B": true
+		}
+	})
+
+func _run_save_restore_multi_dialogue() -> void:
+	var before_trace: Array = []
+	var before_errors: Array = []
+	var story := _load_story("res://tests/conformance/multi_dialogue.nrstory")
+	var before_session := _new_session(before_trace, before_errors)
+	if before_session == null:
+		return
+
+	before_session.start(story)
+	before_session.next()
+	var snapshot: Dictionary = before_session.create_save_snapshot()
+
+	var trace: Array = []
+	var errors: Array = []
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	var restored: bool = session.restore_save_snapshot(story, snapshot)
+	_expect_equal("save_restore_multi_dialogue restored", restored, true)
+	_expect_equal("save_restore_multi_dialogue line index", session.get_state().get("currentLineIndex", -1), 1)
+	session.next()
+	session.next()
+
+	_expect_equal("save_restore_multi_dialogue trace", trace, [
+		"LINE:N_Start:1:line_2",
+		"LINE:N_Start:2:line_3",
+		"EVENT:N_Start:exit:multi_exit",
+		"EVENT:N_End:enter:multi_end",
+		"END"
+	])
+	_expect_equal("save_restore_multi_dialogue errors", errors, [])
+
+func _run_save_restore_after_other_story() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var story_a := _load_story("res://tests/conformance/choice_availability_bool.nrstory")
+	var story_b := _load_story("res://tests/conformance/condition_int_branch.nrstory")
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	session.start(story_a)
+	session.next()
+	var snapshot: Dictionary = session.create_save_snapshot()
+
+	session.start(story_b)
+	session.next()
+
+	var restored: bool = session.restore_save_snapshot(story_a, snapshot)
+	_expect_equal("save_restore_after_other_story restored", restored, true)
+	session.choose(0)
+	session.next()
+
+	_expect_equal("save_restore_after_other_story trace", trace, [
+		"LINE:N_Start:0:start",
+		"CHOICE:N_Choice:1",
+		"LINE:N_Start:0:start",
+		"LINE:N_High:0:high",
+		"CHOICE:N_Choice:1",
+		"LINE:N_Open:0:open_path",
+		"END"
+	])
+	_expect_equal("save_restore_after_other_story errors", errors, [])
 
 func _run_invalid_parser_missing_fields() -> void:
 	var result := _load_story_result("res://tests/conformance/invalid_parser_missing_fields.nrstory")

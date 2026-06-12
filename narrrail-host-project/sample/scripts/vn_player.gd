@@ -2,6 +2,7 @@ extends Control
 
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const STORY_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/story_resource_loader.gd"
+const SAVE_PATH := "user://narrrail_demo_save.json"
 
 @export_file("*.nrstory") var story_path: String = "res://sample/stories/demo.nrstory"
 @export var auto_start_on_ready: bool = true
@@ -12,6 +13,8 @@ const STORY_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/story_resou
 @onready var choices_box: VBoxContainer = $RootMargin/VBox/ChoicesPanel/ChoicesMargin/ChoicesBox
 @onready var status_label: Label = $RootMargin/VBox/Footer/StatusLabel
 @onready var reload_button: Button = $RootMargin/VBox/Footer/ReloadButton
+@onready var save_button: Button = $RootMargin/VBox/Footer/SaveButton
+@onready var load_save_button: Button = $RootMargin/VBox/Footer/LoadSaveButton
 @onready var click_catcher: Button = $RootMargin/VBox/BodyPanel/ClickCatcher
 
 var _session: RefCounted
@@ -22,6 +25,8 @@ var _typing_visible_count: int = 0
 
 func _ready() -> void:
 	reload_button.pressed.connect(_on_reload_pressed)
+	save_button.pressed.connect(_on_save_pressed)
+	load_save_button.pressed.connect(_on_load_save_pressed)
 	click_catcher.pressed.connect(_on_advance_pressed)
 	set_process(true)
 	if auto_start_on_ready:
@@ -123,6 +128,54 @@ func _on_error(message: String) -> void:
 
 func _on_reload_pressed() -> void:
 	start_story()
+
+func _on_save_pressed() -> void:
+	if _session == null:
+		_set_status("No session to save")
+		return
+
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		_set_status("Save failed: %s" % error_string(FileAccess.get_open_error()))
+		return
+
+	var payload := {
+		"storyPath": story_path,
+		"snapshot": _session.create_save_snapshot()
+	}
+	file.store_string(JSON.stringify(payload, "\t"))
+	_set_status("Saved: %s" % SAVE_PATH)
+
+func _on_load_save_pressed() -> void:
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		_set_status("Load save failed: %s" % error_string(FileAccess.get_open_error()))
+		return
+
+	var parsed = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		_set_status("Load save failed: invalid JSON")
+		return
+
+	var payload: Dictionary = parsed
+	var loaded_story_path := String(payload.get("storyPath", story_path))
+	var snapshot = payload.get("snapshot", {})
+	if typeof(snapshot) != TYPE_DICTIONARY:
+		_set_status("Load save failed: missing snapshot")
+		return
+
+	_clear_ui()
+	story_path = loaded_story_path
+	if not _create_session():
+		return
+
+	var story := _load_story(story_path)
+	if story.is_empty():
+		_set_status("Load save failed: story load failed")
+		return
+
+	if _session.restore_save_snapshot(story, snapshot):
+		_set_status("Loaded save: %s" % story_path)
 
 func _clear_ui() -> void:
 	speaker_label.text = "Speaker"
