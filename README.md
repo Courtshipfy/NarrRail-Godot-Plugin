@@ -72,6 +72,7 @@ Project > Tools > NarrRail Sync Stories
 - 生成资源会记录原始 `source_path`
 - 普通故事文件会生成 `NarrRailStoryResource`
 - `meta.configType: GlobalConfig` 文件会生成 `NarrRailGlobalConfigResource`
+- 加载同步故事资产时，会自动合并同仓库 `GlobalConfig` 中的变量定义
 - 再次同步会更新已有资源
 - 同步确认后会删除目标目录下已经失去源文件的旧生成资源
 

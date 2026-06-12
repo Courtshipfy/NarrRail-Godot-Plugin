@@ -1,6 +1,8 @@
 extends SceneTree
 
 const SYNC_SCRIPT := "res://addons/narrrail/editor/story_repository_sync.gd"
+const STORY_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/story_resource_loader.gd"
+const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const TARGET_ROOT := "res://tests/generated_sync"
 const REPO_NAME := "story_repo_sync_fixture"
 
@@ -28,13 +30,15 @@ func _run() -> void:
 		"delete_stale": true
 	})
 	_expect_equal("report failed", report.get("failed", -1), 0)
-	_expect_equal("report created", report.get("created", -1), 3)
+	_expect_equal("report created", report.get("created", -1), 4)
 	_expect_equal("report deleted", report.get("deleted", -1), 1)
 
 	var generated_root := "%s/%s" % [TARGET_ROOT, REPO_NAME]
 	_expect_story("%s/main.tres" % generated_root, "sync_main", "%s/main.nrstory" % _repo_abs)
 	_expect_story("%s/nested/branch.tres" % generated_root, "sync_branch", "%s/nested/branch.nrstory" % _repo_abs)
+	_expect_story("%s/nested/global_ref.tres" % generated_root, "sync_global_ref", "%s/nested/global_ref.nrstory" % _repo_abs)
 	_expect_global_config("%s/global_config.tres" % generated_root, "%s/global_config.nrstory" % _repo_abs)
+	_expect_global_config_runtime("%s/nested/global_ref.tres" % generated_root)
 	if ResourceLoader.exists("%s/deleted.tres" % generated_root):
 		_failures.append("stale generated resource was not deleted")
 
@@ -46,6 +50,7 @@ func _create_fixture_repo() -> void:
 	DirAccess.make_dir_recursive_absolute("%s/nested" % _repo_abs)
 	_write_file("%s/main.nrstory" % _repo_abs, _story_text("sync_main", "N_Start", "main_line"))
 	_write_file("%s/nested/branch.nrstory" % _repo_abs, _story_text("sync_branch", "N_Branch", "branch_line"))
+	_write_file("%s/nested/global_ref.nrstory" % _repo_abs, _global_ref_story_text())
 	_write_file("%s/global_config.nrstory" % _repo_abs, """meta:
   schemaVersion: 1
   configType: GlobalConfig
@@ -102,6 +107,45 @@ edges:
       terms: []
 """ % [story_id, start_id, start_id, text_key, start_id]
 
+func _global_ref_story_text() -> String:
+	return """meta:
+  schemaVersion: 1
+  storyId: sync_global_ref
+  entryNodeId: N_Set
+
+variables: []
+
+nodes:
+  - nodeId: N_Set
+    nodeType: SetVariable
+    actions:
+      - actionType: Add
+        variable:
+          variableName: Affinity
+          variableType: Int
+        value: "1"
+
+  - nodeId: N_Line
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: global_ref_line
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Set
+    targetNodeId: N_Line
+    priority: 0
+    sourceHandle: ""
+
+  - sourceNodeId: N_Line
+    targetNodeId: N_End
+    priority: 0
+    sourceHandle: ""
+"""
+
 func _expect_story(path: String, story_id: String, source_path: String) -> void:
 	var resource := ResourceLoader.load(path)
 	if resource == null:
@@ -120,6 +164,30 @@ func _expect_global_config(path: String, source_path: String) -> void:
 	_expect_equal("%s schema_version" % path, int(resource.get("schema_version")), 1)
 	_expect_equal("%s variables" % path, resource.get("variables").size(), 1)
 	_expect_equal("%s preset_speakers" % path, resource.get("preset_speakers").size(), 1)
+
+func _expect_global_config_runtime(path: String) -> void:
+	var loader_script: Script = load(STORY_RESOURCE_LOADER_SCRIPT)
+	var session_script: Script = load(SESSION_SCRIPT)
+	if loader_script == null or session_script == null:
+		_failures.append("Failed to load runtime scripts for global config runtime check")
+		return
+
+	var result: Dictionary = loader_script.call("load_story", path)
+	if not result.get("ok", false):
+		_failures.append("Failed to load merged story resource: %s" % String(result.get("error", "unknown")))
+		return
+	var story: Dictionary = result.get("story", {})
+	_expect_equal("merged global variables", story.get("variables", []).size(), 1)
+
+	var session: RefCounted = session_script.new()
+	var errors: Array = []
+	session.error_raised.connect(func(message: String) -> void:
+		errors.append(message)
+	)
+	session.start(story)
+	session.next()
+	_expect_equal("global config runtime errors", errors, [])
+	_expect_equal("global config runtime variables", session.get_state().get("variables", {}), {"Affinity": 1})
 
 func _write_file(path: String, content: String) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)

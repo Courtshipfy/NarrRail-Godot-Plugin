@@ -1,7 +1,7 @@
 extends Control
 
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
-const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
+const STORY_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/story_resource_loader.gd"
 
 @export_file("*.nrstory") var story_path: String = "res://sample/stories/demo.nrstory"
 @export var auto_start_on_ready: bool = true
@@ -58,18 +58,9 @@ func _load_story(path: String) -> Dictionary:
 		_set_status("story_path is empty")
 		return {}
 
-	# Prefer imported resource pipeline
-	var imported := load(path)
-	if imported != null:
-		var data = imported.get("story_data")
-		if typeof(data) == TYPE_DICTIONARY and not (data as Dictionary).is_empty():
-			_set_status("Loaded imported: %s" % path)
-			return data
-
-	# Fallback direct loader parse
-	var loader_script: Script = load(LOADER_SCRIPT)
+	var loader_script: Script = load(STORY_RESOURCE_LOADER_SCRIPT)
 	if loader_script == null:
-		_set_status("Loader script missing")
+		_set_status("Story resource loader missing")
 		return {}
 
 	var result: Dictionary = loader_script.call("load_story", path)
@@ -79,7 +70,7 @@ func _load_story(path: String) -> Dictionary:
 
 	var diagnostics: Array = result.get("diagnostics", [])
 	if diagnostics.is_empty():
-		_set_status("Loaded parsed: %s" % path)
+		_set_status("Loaded: %s" % path)
 	else:
 		_set_status("Loaded with diagnostics")
 	return result.get("story", {})
