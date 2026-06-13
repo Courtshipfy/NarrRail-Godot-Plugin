@@ -78,6 +78,7 @@ edges: []
 | `choiceMode` | 枚举 | 否 | 用于 `Choice` 类型，`SinglePass`（默认）/ `ExhaustiveUntilComplete` |
 | `choiceCompletionTargetNodeId` | string | 否 | 用于 `Choice` 类型；当 `choiceMode=ExhaustiveUntilComplete` 时必填 |
 | `jumpTargetNodeId` | string | 否 | 用于 `Jump` 类型 |
+| `eventId` | string | 否 | 用于独立 `EmitEvent` 类型 |
 | `enterActions` | 数组 | 否 | 节点主体执行前的动作 |
 | `exitActions` | 数组 | 否 | 离开节点前的动作 |
 
@@ -114,6 +115,19 @@ lines:
     logic: All
     terms: []
 ```
+
+### 5.4 独立事件节点（EmitEvent Node）
+
+```yaml
+- nodeId: N_PlayBgm
+  nodeType: EmitEvent
+  eventId: bgm_start
+```
+
+说明：
+- 运行到该节点时，runtime 发出 `event_emitted`。
+- 事件 payload 的 `phase` 为 `node`。
+- 发出事件后，runtime 自动沿该节点出边继续。
 
 ## 6. 边（Edges）
 
@@ -183,9 +197,12 @@ terms:
 - 无效的边引用
 - 无效的选项目标引用
 - 空变量名或重复变量名
+- 独立 `EmitEvent` 节点缺少 `eventId`
 
 警告（建议修复）：
 - 孤立节点（除入口节点外）
+
+诊断输出包含 `path` 和 `suggestion`，用于定位问题字段并给出修复建议。
 
 ## 10. 版本控制与兼容性
 

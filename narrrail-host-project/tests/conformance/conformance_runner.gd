@@ -15,6 +15,8 @@ func _run() -> void:
 	_run_invalid_condition_variable()
 	_run_action_chain()
 	_run_jump_actions()
+	_run_emit_event_node()
+	_run_trace_logging()
 	_run_invalid_action_variable()
 	_run_multi_dialogue()
 	_run_invalid_multi_dialogue_empty()
@@ -236,6 +238,56 @@ func _run_jump_actions() -> void:
 		"jump_exit",
 		"jump_end"
 	])
+
+func _run_emit_event_node() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var story := _load_story("res://tests/conformance/emit_event_node.nrstory")
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	session.start(story)
+	session.next()
+	session.next()
+
+	_expect_equal("emit_event_node trace", trace, [
+		"LINE:N_Start:0:start",
+		"EVENT:N_Event:node:door_open",
+		"LINE:N_EndLine:0:after_event",
+		"END"
+	])
+	_expect_equal("emit_event_node errors", errors, [])
+	_expect_equal("emit_event_node events", _event_ids(session.get_state().get("events", [])), ["door_open"])
+
+func _run_trace_logging() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var runtime_trace: Array = []
+	var story := _load_story("res://tests/conformance/emit_event_node.nrstory")
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	session.set_trace_enabled(true)
+	session.trace_logged.connect(func(payload: Dictionary) -> void:
+		runtime_trace.append(String(payload.get("eventType", "")))
+	)
+	session.start(story)
+	session.next()
+	session.next()
+
+	_expect_equal("trace_logging errors", errors, [])
+	for expected in ["session_start", "node_enter", "line", "transition", "event", "ended"]:
+		if not runtime_trace.has(expected):
+			_failures.append("trace_logging missing eventType=%s actual=%s" % [expected, str(runtime_trace)])
+	var records: Array = session.get_trace_records()
+	if records.is_empty():
+		_failures.append("trace_logging expected trace records")
+	else:
+		var first: Dictionary = records[0]
+		if not first.has("storyId") or not first.has("eventType") or not first.has("nodeId") or not first.has("state"):
+			_failures.append("trace_logging missing context fields in %s" % str(first))
 
 func _run_invalid_action_variable() -> void:
 	var trace: Array = []
@@ -527,6 +579,11 @@ func _run_invalid_validator_refs() -> void:
 		"EDGE_TARGET_NOT_FOUND",
 		"CHOICE_TARGET_NOT_FOUND"
 	])
+	_expect_diag_suggestions("invalid_validator_refs suggestions", result.get("diagnostics", []), [
+		"NODE_ID_DUPLICATE",
+		"EDGE_TARGET_NOT_FOUND",
+		"CHOICE_TARGET_NOT_FOUND"
+	])
 
 func _event_ids(events: Array) -> Array:
 	var out: Array = []
@@ -544,6 +601,23 @@ func _expect_diag_codes(label: String, diagnostics: Array, expected_codes: Array
 	for expected_code in expected_codes:
 		if not actual_codes.has(String(expected_code)):
 			_failures.append("%s missing code=%s actual=%s" % [label, String(expected_code), str(actual_codes.keys())])
+
+func _expect_diag_suggestions(label: String, diagnostics: Array, expected_codes: Array) -> void:
+	var by_code: Dictionary = {}
+	for d in diagnostics:
+		var diag: Dictionary = d
+		var code := String(diag.get("code", ""))
+		if not code.is_empty():
+			by_code[code] = diag
+
+	for expected_code in expected_codes:
+		var code := String(expected_code)
+		if not by_code.has(code):
+			_failures.append("%s missing code=%s" % [label, code])
+			continue
+		var suggestion := String((by_code[code] as Dictionary).get("suggestion", ""))
+		if suggestion.is_empty():
+			_failures.append("%s missing suggestion for code=%s" % [label, code])
 
 func _expect_equal(label: String, actual, expected) -> void:
 	if actual != expected:

@@ -55,16 +55,21 @@ static func validate_minimal(story: Dictionary) -> Dictionary:
 			errors.append("Edge target not found: %s" % t)
 
 	for n in story.get("nodes", []):
-		if String(n.get("nodeType", "")) != "Choice":
-			if String(n.get("nodeType", "")) == "MultiDialogue":
+		var node_type := String(n.get("nodeType", ""))
+		if not ["Dialogue", "MultiDialogue", "Choice", "Jump", "SetVariable", "Condition", "EmitEvent", "End"].has(node_type):
+			errors.append("Unsupported nodeType on node %s: %s" % [String(n.get("nodeId", "")), node_type])
+		if node_type != "Choice":
+			if node_type == "MultiDialogue":
 				_validate_multi_dialogue(n, errors)
-			if String(n.get("nodeType", "")) == "Jump":
+			if node_type == "Jump":
 				var jump_target := String(n.get("jumpTargetNodeId", ""))
 				var jump_node_id := String(n.get("nodeId", ""))
 				if jump_target.is_empty():
 					errors.append("Jump target is empty on node: %s" % jump_node_id)
 				elif not node_ids.has(jump_target):
 					errors.append("Jump target not found on node %s: %s" % [jump_node_id, jump_target])
+			if node_type == "EmitEvent" and String(n.get("eventId", "")).is_empty():
+				errors.append("EmitEvent node missing eventId: %s" % String(n.get("nodeId", "")))
 			_validate_node_actions(n, variable_names, errors)
 			continue
 		var source_node_id := String(n.get("nodeId", ""))

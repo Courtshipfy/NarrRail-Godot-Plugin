@@ -36,6 +36,7 @@ Guidelines for integrating `NarrRailSession` into VN-style UI while preserving r
   - inspector-configured `story_path`
   - typewriter effect with click-to-skip-current-line
   - save/load buttons using `user://narrrail_demo_save.json`
+  - optional Debug panel for current state, node, variables, and event count
 
 ## What UI Should Avoid
 
@@ -50,6 +51,7 @@ Guidelines for integrating `NarrRailSession` into VN-style UI while preserving r
 - Add backlog/history using `line_changed` records.
 - Add voice playback triggers via `event_emitted`.
 - Store game-specific metadata alongside `create_save_snapshot()` output.
+- Subscribe to `trace_logged` when a richer external debug console is needed.
 
 ## QA Checklist
 
@@ -59,3 +61,4 @@ Guidelines for integrating `NarrRailSession` into VN-style UI while preserving r
 - [ ] Invalid story shows actionable error status
 - [ ] Reload keeps same `story_path` and restarts cleanly
 - [ ] Save/load restores the same story path and current presentation state
+- [ ] Debug overlay can be toggled without changing story progression

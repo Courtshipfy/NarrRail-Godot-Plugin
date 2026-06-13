@@ -7,6 +7,7 @@ const SAVE_PATH := "user://narrrail_demo_save.json"
 @export_file("*.nrstory") var story_path: String = "res://sample/stories/demo.nrstory"
 @export var auto_start_on_ready: bool = true
 @export var typewriter_chars_per_second: float = 30.0
+@export var debug_overlay_visible: bool = false
 
 @onready var speaker_label: Label = $RootMargin/VBox/Header/MarginContainer/SpeakerLabel
 @onready var body_label: Label = $RootMargin/VBox/BodyPanel/BodyMargin/BodyText
@@ -15,6 +16,9 @@ const SAVE_PATH := "user://narrrail_demo_save.json"
 @onready var reload_button: Button = $RootMargin/VBox/Footer/ReloadButton
 @onready var save_button: Button = $RootMargin/VBox/Footer/SaveButton
 @onready var load_save_button: Button = $RootMargin/VBox/Footer/LoadSaveButton
+@onready var debug_toggle: CheckButton = $RootMargin/VBox/Footer/DebugToggle
+@onready var debug_panel: PanelContainer = $RootMargin/VBox/DebugPanel
+@onready var debug_label: Label = $RootMargin/VBox/DebugPanel/DebugMargin/DebugLabel
 @onready var click_catcher: Button = $RootMargin/VBox/BodyPanel/ClickCatcher
 
 var _session: RefCounted
@@ -27,7 +31,10 @@ func _ready() -> void:
 	reload_button.pressed.connect(_on_reload_pressed)
 	save_button.pressed.connect(_on_save_pressed)
 	load_save_button.pressed.connect(_on_load_save_pressed)
+	debug_toggle.toggled.connect(_on_debug_toggled)
 	click_catcher.pressed.connect(_on_advance_pressed)
+	debug_toggle.button_pressed = debug_overlay_visible
+	debug_panel.visible = debug_overlay_visible
 	set_process(true)
 	if auto_start_on_ready:
 		start_story()
@@ -56,6 +63,12 @@ func _create_session() -> bool:
 	_session.choices_changed.connect(_on_choices_changed)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
+	_session.variable_changed.connect(func(_payload: Dictionary) -> void:
+		_update_debug_overlay()
+	)
+	_session.event_emitted.connect(func(_payload: Dictionary) -> void:
+		_update_debug_overlay()
+	)
 	return true
 
 func _load_story(path: String) -> Dictionary:
@@ -88,6 +101,7 @@ func _on_line_changed(payload: Dictionary) -> void:
 		speaker_label.text = "Narrator"
 	_start_typewriter(String(payload.get("textKey", "")))
 	click_catcher.disabled = false
+	_update_debug_overlay()
 
 func _on_choices_changed(choices: Array) -> void:
 	_waiting_choice = true
@@ -105,6 +119,7 @@ func _on_choices_changed(choices: Array) -> void:
 				_session.choose(i)
 		)
 		choices_box.add_child(btn)
+	_update_debug_overlay()
 
 func _on_advance_pressed() -> void:
 	if _session == null:
@@ -120,11 +135,13 @@ func _on_ended() -> void:
 	_waiting_choice = false
 	click_catcher.disabled = true
 	_set_status("Ended")
+	_update_debug_overlay()
 
 func _on_error(message: String) -> void:
 	_waiting_choice = false
 	click_catcher.disabled = true
 	_set_status("Error: %s" % message)
+	_update_debug_overlay()
 
 func _on_reload_pressed() -> void:
 	start_story()
@@ -176,6 +193,12 @@ func _on_load_save_pressed() -> void:
 
 	if _session.restore_save_snapshot(story, snapshot):
 		_set_status("Loaded save: %s" % story_path)
+		_update_debug_overlay()
+
+func _on_debug_toggled(enabled: bool) -> void:
+	debug_overlay_visible = enabled
+	debug_panel.visible = enabled
+	_update_debug_overlay()
 
 func _clear_ui() -> void:
 	speaker_label.text = "Speaker"
@@ -186,6 +209,7 @@ func _clear_ui() -> void:
 	_typing_full_text = ""
 	_typing_visible_count = 0
 	click_catcher.disabled = false
+	_update_debug_overlay()
 
 func _clear_choices() -> void:
 	for child in choices_box.get_children():
@@ -193,6 +217,25 @@ func _clear_choices() -> void:
 
 func _set_status(text: String) -> void:
 	status_label.text = text
+
+func _update_debug_overlay() -> void:
+	if debug_panel == null or debug_label == null:
+		return
+	if not debug_panel.visible:
+		return
+	if _session == null:
+		debug_label.text = "state: no session"
+		return
+
+	var state: Dictionary = _session.get_state()
+	debug_label.text = "state: %s\nnode: %s\nline: %d\nchoices: %d\nvariables: %s\nevents: %d" % [
+		String(state.get("state", "")),
+		String(state.get("currentNodeId", "")),
+		int(state.get("currentLineIndex", -1)),
+		(state.get("choices", []) as Array).size(),
+		str(state.get("variables", {})),
+		(state.get("events", []) as Array).size()
+	]
 
 func _process(delta: float) -> void:
 	if not _typing_active:

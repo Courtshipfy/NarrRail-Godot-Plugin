@@ -1,0 +1,46 @@
+meta:
+  schemaVersion: 1
+  storyId: emit_event_node
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+
+  - nodeId: N_Event
+    nodeType: EmitEvent
+    eventId: door_open
+
+  - nodeId: N_EndLine
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: after_event
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_Event
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_Event
+    targetNodeId: N_EndLine
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_EndLine
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

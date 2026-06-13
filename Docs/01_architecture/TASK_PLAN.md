@@ -14,12 +14,12 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M1 - Runtime Core
 
 ### NR-GD-001-01 Runtime Data Model
-- Status: [~]
+- Status: [x]
 - Goal: Define runtime data structures for nodes/edges/choices/variables/events.
 - DoD:
-  - [~] Data model supports all required node types.
-  - [ ] Serialization/deserialization contract documented.
-  - [ ] Unit tests cover core model constraints.
+  - [x] Data model supports all required node types.
+  - [x] Serialization/deserialization contract documented.
+  - [x] Unit tests cover core model constraints.
 
 ### NR-GD-001-02 Story Session State Machine
 - Status: [x]
@@ -67,10 +67,10 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
   - [x] Minimal sample scene demonstrates loading and execution.
 
 ### NR-GD-002-03 Validation Pipeline
-- Status: [~]
+- Status: [x]
 - Goal: Implement static validation (broken links, duplicate IDs, orphan nodes).
 - DoD:
-  - [~] Validation report includes location + fix suggestion.
+  - [x] Validation report includes location + fix suggestion.
   - [x] Can run validation without entering runtime play flow.
   - [x] Tests include invalid fixtures with expected diagnostics.
 
@@ -110,20 +110,20 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M4 - Debugging Tooling
 
 ### NR-GD-004-01 Runtime Trace Logging
-- Status: [ ]
+- Status: [x]
 - Goal: Structured logs for node transitions, variable changes, emitted events.
 - DoD:
-  - [ ] Logs can be toggled by level.
-  - [ ] Includes story/session/node context fields.
-  - [ ] Debug output useful for repro steps.
+  - [x] Logs can be toggled by level.
+  - [x] Includes story/session/node context fields.
+  - [x] Debug output useful for repro steps.
 
 ### NR-GD-004-02 In-Game Debug Overlay (Optional)
-- Status: [ ]
+- Status: [x]
 - Goal: Optional debug UI for current node, variables, and recent events.
 - DoD:
-  - [ ] Can be enabled/disabled at runtime.
-  - [ ] Does not affect production flow when disabled.
-  - [ ] Basic usability validated in sample.
+  - [x] Can be enabled/disabled at runtime.
+  - [x] Does not affect production flow when disabled.
+  - [x] Basic usability validated in sample.
 
 ---
 
@@ -149,20 +149,20 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 ## Milestone M6 - Conformance & Quality Gate
 
 ### NR-GD-006-01 Conformance Test Suite
-- Status: [~]
+- Status: [x]
 - Goal: Build cross-engine golden cases for semantic parity.
 - DoD:
   - [x] Includes linear, branching, variable, event scenarios.
   - [x] Expected node/event/variable outputs defined.
-  - [~] Test runner or reproducible manual protocol documented.
+  - [x] Test runner or reproducible manual protocol documented.
 
 ### NR-GD-006-02 Performance Baseline
-- Status: [ ]
+- Status: [x]
 - Goal: Establish initial runtime performance targets.
 - DoD:
-  - [ ] Baseline scenarios documented (small/medium/large story).
-  - [ ] Key metrics recorded (load time, transition cost).
-  - [ ] Known bottlenecks listed.
+  - [x] Baseline scenarios documented (small/medium/large story).
+  - [x] Key metrics recorded (load time, transition cost).
+  - [x] Known bottlenecks listed.
 
 ---
 
@@ -193,6 +193,9 @@ This document tracks work breakdown, status, and Definition of Done (DoD) for `N
 - 2026-06-03 - `NR-GD-002-04` - Done by: `agent` - Evidence: Added `editor/story_repository_sync.gd`, `NarrRailGlobalConfigResource`, editor menu action `NarrRail Sync Stories`, and headless sync runner `tests/sync_repository_runner.gd`; ran `godot --headless --path narrrail-host-project --script res://tests/sync_repository_runner.gd` with `[NarrRail][SyncRepository] PASS`.
 - 2026-06-13 - `NR-GD-005-01` / `NR-GD-005-02` - Done by: `agent` - Evidence: Added versioned session save snapshots and restore API in `narrrail_session.gd`; sample `demo_ui` and `vn_player` save/load `user://narrrail_demo_save.json`; conformance runner covers waiting-choice and MultiDialogue resume; ran `godot --headless --path narrrail-host-project --script res://tests/conformance/conformance_runner.gd` with `[NarrRail][Conformance] PASS`.
 - 2026-06-13 - `NR-GD-005-02` - Fix by: `agent` - Evidence: Added cross-story restore coverage and `tests/save_load_smoke_runner.gd` for the sample UI flow `load story A -> save -> load story B -> load save`; read-save path now loads strictly instead of falling back to demo data; ran smoke with `[NarrRail][SaveLoadSmoke] PASS`.
+- 2026-06-13 - `NR-GD-001-01` / `NR-GD-004-01` / `NR-GD-004-02` / `NR-GD-006-01` - Done by: `agent` - Evidence: Added standalone `EmitEvent` node runtime support and conformance fixture, structured trace logging API/signal, and optional `vn_player` debug overlay; ran conformance with `[NarrRail][Conformance] PASS`.
+- 2026-06-13 - `NR-GD-002-03` - Done by: `agent` - Evidence: Static validator diagnostics now include `suggestion` alongside `path`; invalid fixture tests assert fix suggestions for validator errors; ran conformance with `[NarrRail][Conformance] PASS`.
+- 2026-06-13 - `NR-GD-006-02` - Done by: `agent` - Evidence: Added `tests/performance_baseline_runner.gd` and `Docs/02_runtime/PERFORMANCE_BASELINE.md`; runner reports load/start/transition timings for fixture and synced-resource scenarios; ran with `[NarrRail][PerformanceBaseline] PASS`.
 
 - YYYY-MM-DD - `NR-GD-XXX-YY` - Done by: `<name/agent>` - Evidence: `<PR/commit/test output>`
 

@@ -17,6 +17,7 @@ const SUPPORTED_SCHEMA_VERSION := 1
 #   code: String,
 #   path: String,
 #   message: String,
+#   suggestion: String,
 #   line: int
 # }
 
@@ -392,6 +393,7 @@ static func _diag(severity: String, code: String, path: String, message: String,
 		"code": code,
 		"path": path,
 		"message": message,
+		"suggestion": "",
 		"line": line
 	}
 

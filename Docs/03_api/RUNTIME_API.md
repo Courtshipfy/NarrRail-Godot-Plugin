@@ -57,6 +57,22 @@ Returns current runtime snapshot:
 - `events`
 - `exhaustedChoiceTargets`
 - `exhaustiveChoiceStack`
+- `trace`
+
+### `set_trace_enabled(enabled: bool) -> void`
+
+Enable or disable runtime trace logging. Trace logging is disabled by default.
+
+### `set_trace_level(level: int) -> void`
+
+Set the maximum trace level:
+- `0` - errors only
+- `1` - info
+- `2` - debug
+
+### `get_trace_records() -> Array`
+
+Return accumulated structured trace records.
 
 ### `create_save_snapshot() -> Dictionary`
 
@@ -124,7 +140,30 @@ Emitted when `Set/Add/Subtract` mutates variable state.
 
 ### `event_emitted(payload: Dictionary)`
 
-Emitted when `EmitEvent` action is executed.
+Emitted when an `EmitEvent` action or standalone `EmitEvent` node is executed.
+
+### `trace_logged(payload: Dictionary)`
+
+Emitted when trace logging is enabled and the runtime records a trace event.
+
+Common payload fields:
+- `eventType: String`
+- `level: int`
+- `storyId: String`
+- `state: String`
+- `nodeId: String`
+
+Common `eventType` values:
+- `session_start`
+- `session_restore`
+- `node_enter`
+- `line`
+- `choices`
+- `transition`
+- `variable`
+- `event`
+- `ended`
+- `error`
 
 ## Minimal Integration Example
 

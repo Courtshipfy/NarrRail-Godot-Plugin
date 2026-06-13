@@ -7,6 +7,7 @@ signal ended()
 signal error_raised(message: String)
 signal variable_changed(payload: Dictionary)
 signal event_emitted(payload: Dictionary)
+signal trace_logged(payload: Dictionary)
 
 const STATE_IDLE := "idle"
 const STATE_RUNNING := "running"
@@ -14,6 +15,9 @@ const STATE_WAITING_CHOICE := "waiting_choice"
 const STATE_ENDED := "ended"
 const STORY_MODEL_SCRIPT := "res://addons/narrrail/runtime/story_model.gd"
 const SAVE_SCHEMA_VERSION := 1
+const TRACE_LEVEL_ERROR := 0
+const TRACE_LEVEL_INFO := 1
+const TRACE_LEVEL_DEBUG := 2
 
 var _story: Dictionary = {}
 var _node_by_id: Dictionary = {}
@@ -27,8 +31,21 @@ var _state: String = STATE_IDLE
 var _current_node_id: String = ""
 var _current_choices: Array = []
 var _current_line_index: int = -1
+var _trace_enabled: bool = false
+var _trace_level: int = TRACE_LEVEL_INFO
+var _trace_records: Array = []
+
+func set_trace_enabled(enabled: bool) -> void:
+	_trace_enabled = enabled
+
+func set_trace_level(level: int) -> void:
+	_trace_level = clampi(level, TRACE_LEVEL_ERROR, TRACE_LEVEL_DEBUG)
+
+func get_trace_records() -> Array:
+	return _trace_records.duplicate(true)
 
 func start(story_data: Dictionary) -> void:
+	_trace_records.clear()
 	var model_script: Script = load(STORY_MODEL_SCRIPT)
 	if model_script == null:
 		_emit_error("Failed to load story model script: %s" % STORY_MODEL_SCRIPT)
@@ -52,6 +69,7 @@ func start(story_data: Dictionary) -> void:
 	_state = STATE_RUNNING
 	_current_choices.clear()
 	_current_line_index = -1
+	_trace("session_start", TRACE_LEVEL_INFO, {"storyId": String(_story.get("meta", {}).get("storyId", ""))})
 
 	var entry_id := String(_story.get("meta", {}).get("entryNodeId", ""))
 	_enter_node(entry_id)
@@ -108,6 +126,7 @@ func choose(index: int) -> void:
 	_push_exhaustive_choice_frame(source_node_id)
 	_current_choices.clear()
 	_state = STATE_RUNNING
+	_trace("transition", TRACE_LEVEL_INFO, {"sourceNodeId": source_node_id, "targetNodeId": target, "reason": "choice"})
 	_enter_node(target)
 
 func get_state() -> Dictionary:
@@ -119,7 +138,8 @@ func get_state() -> Dictionary:
 		"variables": _variables.duplicate(true),
 		"events": _emitted_events.duplicate(true),
 		"exhaustedChoiceTargets": _exhausted_choice_targets.duplicate(true),
-		"exhaustiveChoiceStack": _exhaustive_choice_stack.duplicate(true)
+		"exhaustiveChoiceStack": _exhaustive_choice_stack.duplicate(true),
+		"trace": _trace_records.duplicate(true)
 	}
 
 func create_save_snapshot() -> Dictionary:
@@ -161,6 +181,7 @@ func restore_save_snapshot(story_data: Dictionary, snapshot: Dictionary) -> bool
 		_emit_error(String(apply_check.get("error", "Invalid save session data")))
 		return false
 
+	_trace("session_restore", TRACE_LEVEL_INFO, {"storyId": String(_story.get("meta", {}).get("storyId", ""))})
 	_emit_restored_presentation()
 	return true
 
@@ -187,6 +208,7 @@ func _enter_node(node_id: String) -> void:
 	_current_line_index = -1
 	var node: Dictionary = _node_by_id[node_id]
 	var node_type := String(node.get("nodeType", ""))
+	_trace("node_enter", TRACE_LEVEL_INFO, {"nodeType": node_type})
 	var enter_check := _execute_actions(node.get("enterActions", []), "enter", node_id)
 	if not enter_check.get("ok", false):
 		_emit_error(String(enter_check.get("error", "Unknown enter action error")))
@@ -195,12 +217,14 @@ func _enter_node(node_id: String) -> void:
 	match node_type:
 		"Dialogue":
 			var dialogue: Dictionary = node.get("dialogue", {})
-			line_changed.emit({
+			var payload := {
 				"nodeId": node_id,
 				"lineIndex": 0,
 				"speakerId": String(dialogue.get("speakerId", "")),
 				"textKey": String(dialogue.get("textKey", ""))
-			})
+			}
+			_trace("line", TRACE_LEVEL_INFO, payload)
+			line_changed.emit(payload)
 		"MultiDialogue":
 			_current_line_index = 0
 			var emit_check := _emit_multi_dialogue_line(node)
@@ -227,6 +251,7 @@ func _enter_node(node_id: String) -> void:
 				return
 			_current_choices = choices.duplicate(true)
 			_state = STATE_WAITING_CHOICE
+			_trace("choices", TRACE_LEVEL_INFO, {"choiceCount": _current_choices.size()})
 			choices_changed.emit(_current_choices.duplicate(true))
 		"Jump":
 			var target := String(node.get("jumpTargetNodeId", ""))
@@ -237,11 +262,18 @@ func _enter_node(node_id: String) -> void:
 			if not leave_check.get("ok", false):
 				_emit_error(String(leave_check.get("error", "Unknown jump exit action error")))
 				return
+			_trace("transition", TRACE_LEVEL_INFO, {"sourceNodeId": node_id, "targetNodeId": target, "reason": "jump"})
 			_enter_node(target)
 		"SetVariable":
 			var set_check := _execute_actions(node.get("actions", []), "node", node_id)
 			if not set_check.get("ok", false):
 				_emit_error(String(set_check.get("error", "Unknown SetVariable action error")))
+				return
+			_move_to_next_by_edges(node_id)
+		"EmitEvent":
+			var event_check := _execute_emit_event_node(node)
+			if not event_check.get("ok", false):
+				_emit_error(String(event_check.get("error", "Unknown EmitEvent node error")))
 				return
 			_move_to_next_by_edges(node_id)
 		"Condition":
@@ -351,12 +383,14 @@ func _emit_current_line_after_restore() -> void:
 	match node_type:
 		"Dialogue":
 			var dialogue: Dictionary = node.get("dialogue", {})
-			line_changed.emit({
+			var payload := {
 				"nodeId": _current_node_id,
 				"lineIndex": 0,
 				"speakerId": String(dialogue.get("speakerId", "")),
 				"textKey": String(dialogue.get("textKey", ""))
-			})
+			}
+			_trace("line", TRACE_LEVEL_INFO, payload)
+			line_changed.emit(payload)
 		"MultiDialogue":
 			var emit_check := _emit_multi_dialogue_line(node)
 			if not emit_check.get("ok", false):
@@ -394,6 +428,7 @@ func _move_to_next_by_edges(source_node_id: String) -> void:
 		_emit_error("Resolved edge has empty targetNodeId")
 		return
 
+	_trace("transition", TRACE_LEVEL_INFO, {"sourceNodeId": source_node_id, "targetNodeId": target, "reason": "edge"})
 	_enter_node(target)
 
 func _advance_multi_dialogue(node: Dictionary) -> void:
@@ -425,12 +460,14 @@ func _emit_multi_dialogue_line(node: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "MultiDialogue line index out of range on node %s: %d" % [node_id, _current_line_index]}
 
 	var line: Dictionary = lines[_current_line_index]
-	line_changed.emit({
+	var payload := {
 		"nodeId": node_id,
 		"lineIndex": _current_line_index,
 		"speakerId": String(multi_dialogue.get("speakerId", "")),
 		"textKey": String(line.get("textKey", ""))
-	})
+	}
+	_trace("line", TRACE_LEVEL_INFO, payload)
+	line_changed.emit(payload)
 	return {"ok": true, "error": ""}
 
 func _initialize_variables() -> Dictionary:
@@ -786,6 +823,7 @@ func _execute_variable_action(action: Dictionary, phase: String, node_id: String
 		"oldValue": old_value,
 		"newValue": new_value
 	}
+	_trace("variable", TRACE_LEVEL_INFO, payload)
 	variable_changed.emit(payload)
 	return {"ok": true, "error": ""}
 
@@ -800,6 +838,23 @@ func _execute_emit_event_action(action: Dictionary, phase: String, node_id: Stri
 		"eventId": event_id
 	}
 	_emitted_events.append(payload)
+	_trace("event", TRACE_LEVEL_INFO, payload)
+	event_emitted.emit(payload)
+	return {"ok": true, "error": ""}
+
+func _execute_emit_event_node(node: Dictionary) -> Dictionary:
+	var node_id := String(node.get("nodeId", ""))
+	var event_id := String(node.get("eventId", ""))
+	if event_id.is_empty():
+		return {"ok": false, "error": "EmitEvent node has empty eventId: %s" % node_id}
+
+	var payload := {
+		"nodeId": node_id,
+		"phase": "node",
+		"eventId": event_id
+	}
+	_emitted_events.append(payload)
+	_trace("event", TRACE_LEVEL_INFO, payload)
 	event_emitted.emit(payload)
 	return {"ok": true, "error": ""}
 
@@ -837,8 +892,25 @@ func _finish() -> void:
 		return
 	_state = STATE_ENDED
 	_current_choices.clear()
+	_trace("ended", TRACE_LEVEL_INFO, {})
 	ended.emit()
 
 func _emit_error(message: String) -> void:
 	_state = STATE_ENDED
+	_trace("error", TRACE_LEVEL_ERROR, {"message": message})
 	error_raised.emit(message)
+
+func _trace(event_type: String, level: int, data: Dictionary) -> void:
+	if not _trace_enabled:
+		return
+	if level > _trace_level:
+		return
+
+	var payload := data.duplicate(true)
+	payload["eventType"] = event_type
+	payload["level"] = level
+	payload["state"] = _state
+	payload["nodeId"] = _current_node_id
+	payload["storyId"] = String(_story.get("meta", {}).get("storyId", ""))
+	_trace_records.append(payload)
+	trace_logged.emit(payload)
