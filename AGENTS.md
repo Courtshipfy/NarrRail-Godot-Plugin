@@ -10,10 +10,10 @@ The `.nrstory` schema and semantics are compatibility-critical. Treat the extern
 
 ## Repository Layout
 
-- `narrrail-plugin/` - plugin source loaded by Godot as `res://addons/narrrail`
-- `narrrail-plugin/runtime/` - runtime model, story loading, and session state machine
-- `narrrail-plugin/importer/` - `.nrstory` parsing, validation, and import integration
-- `narrrail-plugin/editor/` - editor-side repository sync tooling
+- `narrrail/` - plugin source loaded by Godot as `res://addons/narrrail`
+- `narrrail/runtime/` - runtime model, story loading, and session state machine
+- `narrrail/importer/` - `.nrstory` parsing, validation, and import integration
+- `narrrail/editor/` - editor-side repository sync tooling
 - `narrrail-host-project/` - sample Godot host project and test runners
 - `narrrail-host-project/tests/` - conformance and sync tests
 - `Docs/` - architecture, runtime format, API, and integration docs
@@ -22,7 +22,7 @@ The host project is expected to expose the plugin through:
 
 ```sh
 mkdir -p narrrail-host-project/addons
-ln -s ../../narrrail-plugin narrrail-host-project/addons/narrrail
+ln -s ../../narrrail narrrail-host-project/addons/narrrail
 ```
 
 ## Development Rules
@@ -81,4 +81,3 @@ A change is complete when:
 - conformance impact is considered for runtime semantics changes
 - docs are updated when interfaces or behavior changed
 - unrelated user changes are preserved
-
