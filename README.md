@@ -30,7 +30,30 @@ NarrRail-Godot-Plugin/
 
 Godot 实际从 `res://addons/narrrail` 加载插件代码；开发时直接修改 `narrrail/`。
 
-## Setup
+## Install From Release
+
+下载 release zip 后，将其中的 `narrrail/` 文件夹复制到你的 Godot 项目：
+
+```text
+your-godot-project/
+  addons/
+    narrrail/
+      plugin.cfg
+      plugin.gd
+      runtime/
+      importer/
+      editor/
+```
+
+然后启用插件：
+
+1. 用 Godot 打开你的项目
+2. 进入 `Project > Project Settings > Plugins`
+3. 找到 `NarrRail` 并启用
+
+插件路径必须是 `res://addons/narrrail`。如果目录名不同，插件内部脚本路径将无法加载。
+
+## Development Setup
 
 如果本地缺少 `narrrail-host-project/addons/narrrail`，在仓库根目录创建 symlink：
 
@@ -44,6 +67,22 @@ ln -s ../../narrrail narrrail-host-project/addons/narrrail
 1. 用 Godot 打开 `narrrail-host-project`
 2. 进入 `Project > Project Settings > Plugins`
 3. 找到 `narrrail` 并启用
+
+## Package a Release
+
+从仓库根目录运行：
+
+```sh
+bash tools/package_release.sh 0.1.0
+```
+
+输出文件：
+
+```text
+dist/narrrail-godot-plugin-v0.1.0.zip
+```
+
+zip 中包含可复制到项目中的 `narrrail/` 插件目录，以及 `README.md`、`LICENSE`、`CHANGELOG.md` 和 release notes。
 
 ## Run a Local Story
 
@@ -118,6 +157,8 @@ godot --headless --path narrrail-host-project --script res://tests/performance_b
 godot --headless --path narrrail-host-project --quit-after 1
 ```
 
+发布前建议完整运行以上所有测试命令。
+
 ## Documentation
 
 - `Docs/02_runtime/SCRIPT_FORMAT.md` - `.nrstory` 格式规范
@@ -126,3 +167,7 @@ godot --headless --path narrrail-host-project --quit-after 1
 - `Docs/03_api/RUNTIME_API.md` - 运行时 API
 - `Docs/03_api/UI_INTEGRATION_GUIDE.md` - UI 集成指南
 - `Docs/01_architecture/TASK_PLAN.md` - 任务拆解与里程碑
+
+## License
+
+MIT License. See `LICENSE`.
