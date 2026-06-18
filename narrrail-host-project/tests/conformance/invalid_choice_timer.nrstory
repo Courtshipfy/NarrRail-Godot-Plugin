@@ -1,0 +1,22 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_choice_timer
+  entryNodeId: N_Choice
+
+variables: []
+
+nodes:
+  - nodeId: N_Choice
+    nodeType: Choice
+    choices:
+      - textKey: manual
+        targetNodeId: N_Manual
+    choiceTimer:
+      enabled: true
+      durationSeconds: 0
+      timeoutChoiceTextKey: ""
+
+  - nodeId: N_Manual
+    nodeType: End
+
+edges: []

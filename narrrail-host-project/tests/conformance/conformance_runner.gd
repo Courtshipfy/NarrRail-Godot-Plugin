@@ -23,12 +23,16 @@ func _run() -> void:
 	_run_choice_exhaustive()
 	_run_choice_exhaustive_terminal_return()
 	_run_invalid_choice_exhaustive_completion()
+	_run_choice_timer_timeout()
+	_run_choice_timer_manual_priority()
+	_run_choice_timer_save_restore()
 	_run_set_variable_condition_node()
 	_run_save_restore_waiting_choice()
 	_run_save_restore_multi_dialogue()
 	_run_save_restore_after_other_story()
 	_run_invalid_parser_missing_fields()
 	_run_invalid_validator_refs()
+	_run_invalid_choice_timer()
 
 	if _failures.is_empty():
 		print("[NarrRail][Conformance] PASS")
@@ -87,6 +91,12 @@ func _new_session(trace: Array, errors: Array) -> RefCounted:
 			String(payload.get("nodeId", "")),
 			String(payload.get("phase", "")),
 			String(payload.get("eventId", ""))
+		])
+	)
+	session.choice_timed_out.connect(func(payload: Dictionary) -> void:
+		trace.append("TIMEOUT:%s:%s" % [
+			String(payload.get("nodeId", "")),
+			String(payload.get("targetNodeId", ""))
 		])
 	)
 	return session
@@ -429,6 +439,90 @@ func _run_invalid_choice_exhaustive_completion() -> void:
 	if errors.size() != 1 or not String(errors[0]).contains("Exhaustive choice missing choiceCompletionTargetNodeId on node: N_Choice"):
 		_failures.append("invalid_choice_exhaustive_completion expected completion-target error, got %s" % str(errors))
 
+func _run_choice_timer_timeout() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var timer_ticks: Array = []
+	var story := _load_story("res://tests/conformance/choice_timer.nrstory")
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+	session.choice_timer_changed.connect(func(payload: Dictionary) -> void:
+		timer_ticks.append(float(payload.get("remainingSeconds", 0.0)))
+	)
+
+	session.start(story)
+	_expect_equal("choice_timer_timeout initial remaining", float(session.get_state().get("choiceTimer", {}).get("remainingSeconds", 0.0)), 2.0)
+	session.advance_time(1.0)
+	_expect_equal("choice_timer_timeout remaining after 1s", float(session.get_state().get("choiceTimer", {}).get("remainingSeconds", 0.0)), 1.0)
+	session.advance_time(1.1)
+	session.next()
+
+	_expect_equal("choice_timer_timeout trace", trace, [
+		"CHOICE:N_Choice:1",
+		"TIMEOUT:N_Choice:N_Timeout",
+		"EVENT:N_Choice:exit:choice_exit",
+		"LINE:N_Timeout:0:timeout_path",
+		"END"
+	])
+	_expect_equal("choice_timer_timeout errors", errors, [])
+	if timer_ticks.size() < 3:
+		_failures.append("choice_timer_timeout expected timer ticks, got %s" % str(timer_ticks))
+
+func _run_choice_timer_manual_priority() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var story := _load_story("res://tests/conformance/choice_timer.nrstory")
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	session.start(story)
+	session.advance_time(1.0)
+	session.choose(0)
+	session.advance_time(10.0)
+	session.next()
+
+	_expect_equal("choice_timer_manual_priority trace", trace, [
+		"CHOICE:N_Choice:1",
+		"EVENT:N_Choice:exit:choice_exit",
+		"LINE:N_Manual:0:manual_path",
+		"END"
+	])
+	_expect_equal("choice_timer_manual_priority errors", errors, [])
+
+func _run_choice_timer_save_restore() -> void:
+	var before_trace: Array = []
+	var before_errors: Array = []
+	var story := _load_story("res://tests/conformance/choice_timer.nrstory")
+	var before_session := _new_session(before_trace, before_errors)
+	if before_session == null:
+		return
+
+	before_session.start(story)
+	before_session.advance_time(0.75)
+	var snapshot: Dictionary = before_session.create_save_snapshot()
+
+	var trace: Array = []
+	var errors: Array = []
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+	var restored: bool = session.restore_save_snapshot(story, snapshot)
+	_expect_equal("choice_timer_save_restore restored", restored, true)
+	_expect_equal("choice_timer_save_restore remaining", float(session.get_state().get("choiceTimer", {}).get("remainingSeconds", 0.0)), 1.25)
+	session.advance_time(1.3)
+	session.next()
+
+	_expect_equal("choice_timer_save_restore trace", trace, [
+		"CHOICE:N_Choice:1",
+		"TIMEOUT:N_Choice:N_Timeout",
+		"EVENT:N_Choice:exit:choice_exit",
+		"LINE:N_Timeout:0:timeout_path",
+		"END"
+	])
+	_expect_equal("choice_timer_save_restore errors", errors, [])
+
 func _run_set_variable_condition_node() -> void:
 	var story := _load_story("res://tests/conformance/set_variable_condition_node.nrstory")
 	_run_set_variable_condition_path(story, 0, [
@@ -583,6 +677,15 @@ func _run_invalid_validator_refs() -> void:
 		"NODE_ID_DUPLICATE",
 		"EDGE_TARGET_NOT_FOUND",
 		"CHOICE_TARGET_NOT_FOUND"
+	])
+
+func _run_invalid_choice_timer() -> void:
+	var result := _load_story_result("res://tests/conformance/invalid_choice_timer.nrstory")
+	_expect_equal("invalid_choice_timer ok", result.get("ok", true), false)
+	_expect_diag_codes("invalid_choice_timer diagnostics", result.get("diagnostics", []), [
+		"CHOICE_TIMER_DURATION_INVALID",
+		"CHOICE_TIMER_TEXT_EMPTY",
+		"CHOICE_TIMER_EDGE_MISSING"
 	])
 
 func _event_ids(events: Array) -> Array:

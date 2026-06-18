@@ -82,6 +82,7 @@ static func validate_minimal(story: Dictionary) -> Dictionary:
 				errors.append("Exhaustive choice missing choiceCompletionTargetNodeId on node: %s" % source_node_id)
 			elif not node_ids.has(completion_target):
 				errors.append("Exhaustive choice completion target not found on node %s: %s" % [source_node_id, completion_target])
+		_validate_choice_timer(n, story.get("edges", []), node_ids, errors)
 		for c in n.get("choices", []):
 			var target := String(c.get("targetNodeId", ""))
 			if target.is_empty():
@@ -104,6 +105,40 @@ static func _validate_multi_dialogue(node: Dictionary, errors: Array[String]) ->
 		var line: Dictionary = lines[i]
 		if not line.has("textKey"):
 			errors.append("MultiDialogue line missing textKey on node %s at index %d" % [node_id, i])
+
+static func _validate_choice_timer(node: Dictionary, edges: Array, node_ids: Dictionary, errors: Array[String]) -> void:
+	var timer = node.get("choiceTimer", {})
+	if typeof(timer) != TYPE_DICTIONARY or not bool((timer as Dictionary).get("enabled", false)):
+		return
+	var timer_dict: Dictionary = timer
+	var node_id := String(node.get("nodeId", ""))
+	var duration = timer_dict.get("durationSeconds", 0)
+	var duration_ok := false
+	match typeof(duration):
+		TYPE_INT, TYPE_FLOAT:
+			duration_ok = float(duration) > 0.0
+		_:
+			duration_ok = str(duration).is_valid_float() and float(str(duration)) > 0.0
+	if not duration_ok:
+		errors.append("Choice timer durationSeconds must be greater than 0 on node: %s" % node_id)
+	if String(timer_dict.get("timeoutChoiceTextKey", "")).strip_edges().is_empty():
+		errors.append("Choice timer timeoutChoiceTextKey is empty on node: %s" % node_id)
+
+	var timeout_edges: Array = []
+	for edge in edges:
+		var e: Dictionary = edge
+		if String(e.get("sourceNodeId", "")) == node_id and String(e.get("sourceHandle", "")) == "choice-timeout":
+			timeout_edges.append(e)
+	if timeout_edges.is_empty():
+		errors.append("Choice timer missing choice-timeout edge on node: %s" % node_id)
+	elif timeout_edges.size() > 1:
+		errors.append("Choice timer has multiple choice-timeout edges on node: %s" % node_id)
+	for edge in timeout_edges:
+		var target := String((edge as Dictionary).get("targetNodeId", ""))
+		if target.is_empty():
+			errors.append("Choice timer target is empty on node: %s" % node_id)
+		elif not node_ids.has(target):
+			errors.append("Choice timer target not found on node %s: %s" % [node_id, target])
 
 static func _validate_node_actions(node: Dictionary, variable_names: Dictionary, errors: Array[String]) -> void:
 	var node_id := String(node.get("nodeId", ""))

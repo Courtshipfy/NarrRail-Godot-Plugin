@@ -26,6 +26,7 @@ var _waiting_choice: bool = false
 var _typing_active: bool = false
 var _typing_full_text: String = ""
 var _typing_visible_count: int = 0
+var _choice_timer_label: Label
 
 func _ready() -> void:
 	reload_button.pressed.connect(_on_reload_pressed)
@@ -61,6 +62,8 @@ func _create_session() -> bool:
 	_session = session_script.new()
 	_session.line_changed.connect(_on_line_changed)
 	_session.choices_changed.connect(_on_choices_changed)
+	_session.choice_timer_changed.connect(_on_choice_timer_changed)
+	_session.choice_timed_out.connect(_on_choice_timed_out)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
 	_session.variable_changed.connect(func(_payload: Dictionary) -> void:
@@ -107,6 +110,10 @@ func _on_choices_changed(choices: Array) -> void:
 	_waiting_choice = true
 	_clear_choices()
 	click_catcher.disabled = true
+	_ensure_choice_timer_label()
+	if _session != null:
+		var state: Dictionary = _session.get_state()
+		_on_choice_timer_changed(state.get("choiceTimer", {}))
 
 	for i in range(choices.size()):
 		var c: Dictionary = choices[i]
@@ -120,6 +127,21 @@ func _on_choices_changed(choices: Array) -> void:
 		)
 		choices_box.add_child(btn)
 	_update_debug_overlay()
+
+func _on_choice_timer_changed(payload: Dictionary) -> void:
+	if not bool(payload.get("enabled", false)):
+		if _choice_timer_label != null:
+			_choice_timer_label.visible = false
+		_update_debug_overlay()
+		return
+
+	_ensure_choice_timer_label()
+	_choice_timer_label.visible = true
+	_choice_timer_label.text = "Timeout: %.1fs" % float(payload.get("remainingSeconds", 0.0))
+	_update_debug_overlay()
+
+func _on_choice_timed_out(payload: Dictionary) -> void:
+	_set_status("Timed out: %s" % String(payload.get("timeoutChoiceTextKey", "Timeout")))
 
 func _on_advance_pressed() -> void:
 	if _session == null:
@@ -214,6 +236,16 @@ func _clear_ui() -> void:
 func _clear_choices() -> void:
 	for child in choices_box.get_children():
 		child.queue_free()
+	_choice_timer_label = null
+
+func _ensure_choice_timer_label() -> void:
+	if _choice_timer_label != null and is_instance_valid(_choice_timer_label):
+		return
+	_choice_timer_label = Label.new()
+	_choice_timer_label.visible = false
+	_choice_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_choice_timer_label.add_theme_font_size_override("font_size", 14)
+	choices_box.add_child(_choice_timer_label)
 
 func _set_status(text: String) -> void:
 	status_label.text = text
@@ -238,6 +270,9 @@ func _update_debug_overlay() -> void:
 	]
 
 func _process(delta: float) -> void:
+	if _session != null:
+		_session.advance_time(delta)
+
 	if not _typing_active:
 		return
 	if typewriter_chars_per_second <= 0.0:

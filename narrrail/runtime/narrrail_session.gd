@@ -8,6 +8,8 @@ signal error_raised(message: String)
 signal variable_changed(payload: Dictionary)
 signal event_emitted(payload: Dictionary)
 signal trace_logged(payload: Dictionary)
+signal choice_timer_changed(payload: Dictionary)
+signal choice_timed_out(payload: Dictionary)
 
 const STATE_IDLE := "idle"
 const STATE_RUNNING := "running"
@@ -31,6 +33,12 @@ var _state: String = STATE_IDLE
 var _current_node_id: String = ""
 var _current_choices: Array = []
 var _current_line_index: int = -1
+var _choice_timer: Dictionary = {
+	"enabled": false,
+	"durationSeconds": 0.0,
+	"remainingSeconds": 0.0,
+	"timeoutChoiceTextKey": ""
+}
 var _trace_enabled: bool = false
 var _trace_level: int = TRACE_LEVEL_INFO
 var _trace_records: Array = []
@@ -69,6 +77,7 @@ func start(story_data: Dictionary) -> void:
 	_state = STATE_RUNNING
 	_current_choices.clear()
 	_current_line_index = -1
+	_reset_choice_timer(false)
 	_trace("session_start", TRACE_LEVEL_INFO, {"storyId": String(_story.get("meta", {}).get("storyId", ""))})
 
 	var entry_id := String(_story.get("meta", {}).get("entryNodeId", ""))
@@ -115,19 +124,24 @@ func choose(index: int) -> void:
 	if target.is_empty():
 		_emit_error("Chosen option has empty targetNodeId")
 		return
-	var source_node_id := _current_node_id
 
-	var leave_check := _execute_exit_actions(_current_node_id)
-	if not leave_check.get("ok", false):
-		_emit_error(String(leave_check.get("error", "Unknown exit action error")))
+	_select_choice_target(target, "choice", true)
+
+func advance_time(delta_seconds: float) -> void:
+	if _state != STATE_WAITING_CHOICE:
+		return
+	if not bool(_choice_timer.get("enabled", false)):
+		return
+	if delta_seconds <= 0.0:
 		return
 
-	_mark_exhaustive_choice_selected(source_node_id, target)
-	_push_exhaustive_choice_frame(source_node_id)
-	_current_choices.clear()
-	_state = STATE_RUNNING
-	_trace("transition", TRACE_LEVEL_INFO, {"sourceNodeId": source_node_id, "targetNodeId": target, "reason": "choice"})
-	_enter_node(target)
+	var remaining := maxf(0.0, float(_choice_timer.get("remainingSeconds", 0.0)) - delta_seconds)
+	_choice_timer["remainingSeconds"] = remaining
+	_emit_choice_timer_changed()
+	if remaining > 0.0:
+		return
+
+	_timeout_current_choice()
 
 func get_state() -> Dictionary:
 	return {
@@ -135,6 +149,7 @@ func get_state() -> Dictionary:
 		"currentNodeId": _current_node_id,
 		"currentLineIndex": _current_line_index,
 		"choices": _current_choices.duplicate(true),
+		"choiceTimer": _choice_timer.duplicate(true),
 		"variables": _variables.duplicate(true),
 		"events": _emitted_events.duplicate(true),
 		"exhaustedChoiceTargets": _exhausted_choice_targets.duplicate(true),
@@ -208,6 +223,8 @@ func _enter_node(node_id: String) -> void:
 	_current_line_index = -1
 	var node: Dictionary = _node_by_id[node_id]
 	var node_type := String(node.get("nodeType", ""))
+	if node_type != "Choice":
+		_reset_choice_timer(true)
 	_trace("node_enter", TRACE_LEVEL_INFO, {"nodeType": node_type})
 	var enter_check := _execute_actions(node.get("enterActions", []), "enter", node_id)
 	if not enter_check.get("ok", false):
@@ -251,6 +268,7 @@ func _enter_node(node_id: String) -> void:
 				return
 			_current_choices = choices.duplicate(true)
 			_state = STATE_WAITING_CHOICE
+			_start_choice_timer(node)
 			_trace("choices", TRACE_LEVEL_INFO, {"choiceCount": _current_choices.size()})
 			choices_changed.emit(_current_choices.duplicate(true))
 		"Jump":
@@ -344,6 +362,9 @@ func _apply_save_session_data(session_data: Dictionary) -> Dictionary:
 	var restored_stack = session_data.get("exhaustiveChoiceStack", [])
 	if typeof(restored_stack) != TYPE_ARRAY:
 		return {"ok": false, "error": "Saved exhaustiveChoiceStack must be an Array"}
+	var restored_choice_timer = session_data.get("choiceTimer", {})
+	if typeof(restored_choice_timer) != TYPE_DICTIONARY:
+		return {"ok": false, "error": "Saved choiceTimer must be a Dictionary"}
 
 	_state = restored_state
 	_current_node_id = restored_node_id
@@ -354,6 +375,7 @@ func _apply_save_session_data(session_data: Dictionary) -> Dictionary:
 	for item in restored_stack:
 		_exhaustive_choice_stack.append(String(item))
 	_current_choices.clear()
+	_reset_choice_timer(false)
 
 	if _state == STATE_WAITING_CHOICE:
 		var node: Dictionary = _node_by_id.get(_current_node_id, {})
@@ -363,12 +385,16 @@ func _apply_save_session_data(session_data: Dictionary) -> Dictionary:
 		if not choices_check.get("ok", false):
 			return {"ok": false, "error": String(choices_check.get("error", "Unknown choice restore error"))}
 		_current_choices = (choices_check.get("choices", []) as Array).duplicate(true)
+		_start_choice_timer(node)
+		if not (restored_choice_timer as Dictionary).is_empty():
+			_restore_choice_timer(restored_choice_timer as Dictionary)
 
 	return {"ok": true, "error": ""}
 
 func _emit_restored_presentation() -> void:
 	match _state:
 		STATE_WAITING_CHOICE:
+			_emit_choice_timer_changed()
 			choices_changed.emit(_current_choices.duplicate(true))
 		STATE_RUNNING:
 			_emit_current_line_after_restore()
@@ -520,6 +546,98 @@ func _get_available_choices(node: Dictionary) -> Dictionary:
 
 func _choice_mode(node: Dictionary) -> String:
 	return String(node.get("choiceMode", "SinglePass"))
+
+func _select_choice_target(target: String, reason: String, mark_exhaustive: bool) -> void:
+	var source_node_id := _current_node_id
+	var leave_check := _execute_exit_actions(source_node_id)
+	if not leave_check.get("ok", false):
+		_emit_error(String(leave_check.get("error", "Unknown choice exit action error")))
+		return
+
+	if mark_exhaustive:
+		_mark_exhaustive_choice_selected(source_node_id, target)
+		_push_exhaustive_choice_frame(source_node_id)
+	_current_choices.clear()
+	_reset_choice_timer(true)
+	_state = STATE_RUNNING
+	_trace("transition", TRACE_LEVEL_INFO, {"sourceNodeId": source_node_id, "targetNodeId": target, "reason": reason})
+	_enter_node(target)
+
+func _timeout_current_choice() -> void:
+	if _state != STATE_WAITING_CHOICE:
+		return
+	var source_node_id := _current_node_id
+	var target_check := _target_for_source_handle(source_node_id, "choice-timeout")
+	if not target_check.get("ok", false):
+		_emit_error(String(target_check.get("error", "Choice timer timeout target missing")))
+		return
+	var target := String(target_check.get("targetNodeId", ""))
+	if target.is_empty():
+		_emit_error("Choice timer timeout target is empty on node: %s" % source_node_id)
+		return
+
+	var payload := _choice_timer_payload()
+	payload["targetNodeId"] = target
+	choice_timed_out.emit(payload)
+	_select_choice_target(target, "choice_timeout", false)
+
+func _start_choice_timer(node: Dictionary) -> void:
+	var timer: Dictionary = node.get("choiceTimer", {})
+	if typeof(timer) != TYPE_DICTIONARY or not bool(timer.get("enabled", false)):
+		_reset_choice_timer(true)
+		return
+	var duration := _positive_float(timer.get("durationSeconds", 0.0), 0.0)
+	if duration <= 0.0:
+		_reset_choice_timer(true)
+		return
+	_choice_timer = {
+		"enabled": true,
+		"durationSeconds": duration,
+		"remainingSeconds": duration,
+		"timeoutChoiceTextKey": String(timer.get("timeoutChoiceTextKey", ""))
+	}
+	_emit_choice_timer_changed()
+
+func _restore_choice_timer(saved_timer: Dictionary) -> void:
+	if not bool(_choice_timer.get("enabled", false)):
+		return
+	if not bool(saved_timer.get("enabled", false)):
+		_reset_choice_timer(true)
+		return
+	var duration := _positive_float(saved_timer.get("durationSeconds", _choice_timer.get("durationSeconds", 0.0)), float(_choice_timer.get("durationSeconds", 0.0)))
+	var remaining := _positive_float(saved_timer.get("remainingSeconds", duration), duration)
+	_choice_timer["durationSeconds"] = duration
+	_choice_timer["remainingSeconds"] = minf(remaining, duration)
+	_choice_timer["timeoutChoiceTextKey"] = String(saved_timer.get("timeoutChoiceTextKey", _choice_timer.get("timeoutChoiceTextKey", "")))
+
+func _reset_choice_timer(emit_signal: bool) -> void:
+	var was_enabled := bool(_choice_timer.get("enabled", false))
+	_choice_timer = {
+		"enabled": false,
+		"durationSeconds": 0.0,
+		"remainingSeconds": 0.0,
+		"timeoutChoiceTextKey": ""
+	}
+	if emit_signal and was_enabled:
+		_emit_choice_timer_changed()
+
+func _emit_choice_timer_changed() -> void:
+	choice_timer_changed.emit(_choice_timer_payload())
+
+func _choice_timer_payload() -> Dictionary:
+	var payload := _choice_timer.duplicate(true)
+	payload["nodeId"] = _current_node_id
+	return payload
+
+func _positive_float(value, fallback: float) -> float:
+	match typeof(value):
+		TYPE_INT, TYPE_FLOAT:
+			return float(value) if float(value) > 0.0 else fallback
+		_:
+			var text := str(value)
+			if text.is_valid_float() and float(text) > 0.0:
+				return float(text)
+	return fallback
 
 func _mark_exhaustive_choice_selected(source_node_id: String, target_node_id: String) -> void:
 	if not _node_by_id.has(source_node_id):
@@ -892,11 +1010,14 @@ func _finish() -> void:
 		return
 	_state = STATE_ENDED
 	_current_choices.clear()
+	_reset_choice_timer(true)
 	_trace("ended", TRACE_LEVEL_INFO, {})
 	ended.emit()
 
 func _emit_error(message: String) -> void:
 	_state = STATE_ENDED
+	_current_choices.clear()
+	_reset_choice_timer(true)
 	_trace("error", TRACE_LEVEL_ERROR, {"message": message})
 	error_raised.emit(message)
 

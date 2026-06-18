@@ -22,6 +22,7 @@ const SAVE_PATH := "user://narrrail_demo_save.json"
 var _session: RefCounted
 var _story_paths: Array[String] = []
 var _story_labels: Dictionary = {}
+var _choice_timer_label: Label
 
 func _ready() -> void:
 	next_button.pressed.connect(_on_next_pressed)
@@ -35,6 +36,7 @@ func _ready() -> void:
 	)
 
 	_refresh_story_list()
+	set_process(true)
 	_load_story_path(_selected_or_default_path())
 
 func _create_session() -> bool:
@@ -46,6 +48,8 @@ func _create_session() -> bool:
 	_session = session_script.new()
 	_session.line_changed.connect(_on_line_changed)
 	_session.choices_changed.connect(_on_choices_changed)
+	_session.choice_timer_changed.connect(_on_choice_timer_changed)
+	_session.choice_timed_out.connect(_on_choice_timed_out)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
 	return true
@@ -236,6 +240,10 @@ func _on_line_changed(payload: Dictionary) -> void:
 func _on_choices_changed(choices: Array) -> void:
 	_clear_choices()
 	next_button.disabled = true
+	_ensure_choice_timer_label()
+	if _session != null:
+		var state: Dictionary = _session.get_state()
+		_on_choice_timer_changed(state.get("choiceTimer", {}))
 	for i in range(choices.size()):
 		var c: Dictionary = choices[i]
 		var btn := Button.new()
@@ -245,6 +253,19 @@ func _on_choices_changed(choices: Array) -> void:
 			_session.choose(i)
 		)
 		choices_box.add_child(btn)
+
+func _on_choice_timer_changed(payload: Dictionary) -> void:
+	if not bool(payload.get("enabled", false)):
+		if _choice_timer_label != null and is_instance_valid(_choice_timer_label):
+			_choice_timer_label.visible = false
+		return
+
+	_ensure_choice_timer_label()
+	_choice_timer_label.visible = true
+	_choice_timer_label.text = "Timeout: %.1fs" % float(payload.get("remainingSeconds", 0.0))
+
+func _on_choice_timed_out(payload: Dictionary) -> void:
+	_push_status("Timed out: %s" % String(payload.get("timeoutChoiceTextKey", "Timeout")))
 
 func _on_ended() -> void:
 	_clear_choices()
@@ -330,12 +351,26 @@ func _select_story_path_if_available(path: String) -> void:
 func _clear_choices() -> void:
 	for child in choices_box.get_children():
 		child.queue_free()
+	_choice_timer_label = null
+
+func _ensure_choice_timer_label() -> void:
+	if _choice_timer_label != null and is_instance_valid(_choice_timer_label):
+		return
+	_choice_timer_label = Label.new()
+	_choice_timer_label.visible = false
+	_choice_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_choice_timer_label.add_theme_font_size_override("font_size", 14)
+	choices_box.add_child(_choice_timer_label)
 
 func _clear_story_view() -> void:
 	_clear_choices()
 	speaker_label.text = "Speaker: "
 	text_label.text = ""
 	next_button.disabled = true
+
+func _process(delta: float) -> void:
+	if _session != null:
+		_session.advance_time(delta)
 
 func _format_diagnostics(result: Dictionary) -> String:
 	var diagnostics: Array = result.get("diagnostics", [])

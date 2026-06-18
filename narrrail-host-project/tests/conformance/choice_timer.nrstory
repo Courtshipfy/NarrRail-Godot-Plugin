@@ -1,0 +1,58 @@
+meta:
+  schemaVersion: 1
+  storyId: choice_timer
+  entryNodeId: N_Choice
+
+variables: []
+
+nodes:
+  - nodeId: N_Choice
+    nodeType: Choice
+    choices:
+      - textKey: manual
+        targetNodeId: N_Manual
+    choiceTimer:
+      enabled: true
+      durationSeconds: 2
+      timeoutChoiceTextKey: timeout
+    exitActions:
+      - actionType: EmitEvent
+        eventId: choice_exit
+
+  - nodeId: N_Manual
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: manual_path
+
+  - nodeId: N_Timeout
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: timeout_path
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Choice
+    sourceHandle: choice-timeout
+    targetNodeId: N_Timeout
+    priority: 99
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Manual
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Timeout
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

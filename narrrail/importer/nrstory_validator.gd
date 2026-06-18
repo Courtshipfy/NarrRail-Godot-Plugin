@@ -62,6 +62,7 @@ static func validate_story(story: Dictionary) -> Array:
 				diagnostics.append(_diag("error", "CHOICE_TARGET_EMPTY", "nodes[%d].choices[%d].targetNodeId" % [i, j], "Choice targetNodeId must not be empty", "Set the choice targetNodeId to an existing node."))
 			elif not node_ids.has(target):
 				diagnostics.append(_diag("error", "CHOICE_TARGET_NOT_FOUND", "nodes[%d].choices[%d].targetNodeId" % [i, j], "Choice target not found: %s" % target, "Create the target node or update this choice targetNodeId."))
+		diagnostics.append_array(_validate_choice_timer(node, i, edges, node_ids))
 
 	# Orphan node warning (exclude entry)
 	var incoming: Dictionary = {}
@@ -77,6 +78,57 @@ static func validate_story(story: Dictionary) -> Array:
 			continue
 		if not incoming.has(node_id):
 			diagnostics.append(_diag("warning", "NODE_ORPHAN", "nodes[%d].nodeId" % i, "Orphan node (no incoming edge): %s" % node_id, "Connect this node from another node or remove it if unused."))
+
+	return diagnostics
+
+static func _validate_choice_timer(node: Dictionary, node_index: int, edges: Array, node_ids: Dictionary) -> Array:
+	var diagnostics: Array = []
+	var timer = node.get("choiceTimer", {})
+	var enabled := false
+	if typeof(timer) == TYPE_DICTIONARY:
+		enabled = bool((timer as Dictionary).get("enabled", false))
+
+	var node_id := String(node.get("nodeId", ""))
+	var timeout_edges: Array = []
+	for edge in edges:
+		var e: Dictionary = edge
+		if String(e.get("sourceNodeId", "")) == node_id and String(e.get("sourceHandle", "")) == "choice-timeout":
+			timeout_edges.append(e)
+
+	if not enabled:
+		if not timeout_edges.is_empty():
+			diagnostics.append(_diag("warning", "CHOICE_TIMER_EDGE_UNUSED", "nodes[%d].choiceTimer" % node_index, "Choice has choice-timeout edge but choiceTimer is disabled: %s" % node_id, "Enable choiceTimer or remove the choice-timeout edge."))
+		return diagnostics
+
+	if typeof(timer) != TYPE_DICTIONARY:
+		diagnostics.append(_diag("error", "CHOICE_TIMER_TYPE_INVALID", "nodes[%d].choiceTimer" % node_index, "choiceTimer must be an object when enabled", "Use choiceTimer.enabled, durationSeconds, and timeoutChoiceTextKey."))
+		return diagnostics
+
+	var timer_dict: Dictionary = timer
+	var duration = timer_dict.get("durationSeconds", 0)
+	var duration_ok := false
+	match typeof(duration):
+		TYPE_INT, TYPE_FLOAT:
+			duration_ok = float(duration) > 0.0
+		_:
+			duration_ok = str(duration).is_valid_float() and float(str(duration)) > 0.0
+	if not duration_ok:
+		diagnostics.append(_diag("error", "CHOICE_TIMER_DURATION_INVALID", "nodes[%d].choiceTimer.durationSeconds" % node_index, "Choice timer durationSeconds must be greater than 0", "Set durationSeconds to a positive number."))
+
+	if String(timer_dict.get("timeoutChoiceTextKey", "")).strip_edges().is_empty():
+		diagnostics.append(_diag("error", "CHOICE_TIMER_TEXT_EMPTY", "nodes[%d].choiceTimer.timeoutChoiceTextKey" % node_index, "Choice timer timeoutChoiceTextKey must not be empty", "Set display text for the timeout choice."))
+
+	if timeout_edges.is_empty():
+		diagnostics.append(_diag("error", "CHOICE_TIMER_EDGE_MISSING", "nodes[%d].choiceTimer" % node_index, "Enabled choice timer is missing choice-timeout edge: %s" % node_id, "Connect one edge with sourceHandle: choice-timeout."))
+	elif timeout_edges.size() > 1:
+		diagnostics.append(_diag("error", "CHOICE_TIMER_EDGE_DUPLICATE", "nodes[%d].choiceTimer" % node_index, "Enabled choice timer has multiple choice-timeout edges: %s" % node_id, "Keep exactly one choice-timeout edge."))
+
+	for edge in timeout_edges:
+		var target := String((edge as Dictionary).get("targetNodeId", ""))
+		if target.is_empty():
+			diagnostics.append(_diag("error", "CHOICE_TIMER_TARGET_EMPTY", "nodes[%d].choiceTimer" % node_index, "Choice timer targetNodeId must not be empty", "Set the choice-timeout edge target."))
+		elif not node_ids.has(target):
+			diagnostics.append(_diag("error", "CHOICE_TIMER_TARGET_NOT_FOUND", "nodes[%d].choiceTimer" % node_index, "Choice timer target not found: %s" % target, "Create the target node or update the choice-timeout edge."))
 
 	return diagnostics
 
