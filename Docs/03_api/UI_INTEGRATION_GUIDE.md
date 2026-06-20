@@ -19,24 +19,15 @@ Guidelines for integrating `NarrRailSession` into VN-style UI while preserving r
 
 ### `demo_ui.gd`
 
-- Purpose: debug-friendly loading and story selection
+- Purpose: debug-friendly story and outline loading
 - Features:
   - selectable story path
+  - synced outline resource selection
   - imported-resource-first loading
   - diagnostics status rendering
   - save/load buttons using `user://narrrail_demo_save.json`
-
-### `vn_player.gd`
-
-- Purpose: standalone VN interaction scene
-- Features:
   - speaker + body text presentation
-  - click-to-advance
   - dynamic choice buttons
-  - inspector-configured `story_path`
-  - typewriter effect with click-to-skip-current-line
-  - save/load buttons using `user://narrrail_demo_save.json`
-  - optional Debug panel for current state, node, variables, and event count
 
 ## What UI Should Avoid
 
@@ -55,10 +46,9 @@ Guidelines for integrating `NarrRailSession` into VN-style UI while preserving r
 
 ## QA Checklist
 
-- [ ] Clicking during typewriter completes current line first
-- [ ] Clicking after full line advances to next state
+- [ ] Next advances to the next runtime state
 - [ ] Choice state disables accidental `next()` input
 - [ ] Invalid story shows actionable error status
 - [ ] Reload keeps same `story_path` and restarts cleanly
 - [ ] Save/load restores the same story path and current presentation state
-- [ ] Debug overlay can be toggled without changing story progression
+- [ ] Outline selection can run Story, Branch, fallback, and End nodes through the same UI

@@ -15,7 +15,7 @@ This document defines a repeatable protocol to verify `.nrstory` reimport/update
 
 1. Plugin enabled: `Project Settings > Plugins > NarrRail`
 2. Story file exists: `res://sample/stories/demo.nrstory`
-3. Demo scene exists: `res://sample/scenes/vn_player.tscn`
+3. Demo scene exists: `res://sample/scenes/demo_ui.tscn`
 
 ## Protocol
 
@@ -24,7 +24,7 @@ This document defines a repeatable protocol to verify `.nrstory` reimport/update
 1. Open `demo.nrstory`.
 2. Ensure it contains a known first line text (e.g. `你好，今天一起去散步吗？`).
 3. In FileSystem, right-click `demo.nrstory` -> `Reimport`.
-4. Run `vn_player.tscn`.
+4. Run `demo_ui.tscn`.
 
 Expected:
 - Status shows `Loaded imported: res://sample/stories/demo.nrstory`.

@@ -250,4 +250,3 @@ Forwarded story payloads include `outlineNodeId` and `storyId` where applicable.
 ## Sample References
 
 - `res://sample/scripts/demo_ui.gd`
-- `res://sample/scripts/vn_player.gd`
