@@ -52,7 +52,7 @@ func set_trace_level(level: int) -> void:
 func get_trace_records() -> Array:
 	return _trace_records.duplicate(true)
 
-func start(story_data: Dictionary) -> void:
+func start(story_data: Dictionary, initial_variables: Dictionary = {}) -> void:
 	_trace_records.clear()
 	var model_script: Script = load(STORY_MODEL_SCRIPT)
 	if model_script == null:
@@ -72,6 +72,10 @@ func start(story_data: Dictionary) -> void:
 	var variables_check := _initialize_variables()
 	if not variables_check.get("ok", false):
 		_emit_error("Variable initialization failed: %s" % String(variables_check.get("error", "unknown")))
+		return
+	var initial_variables_check := _apply_initial_variables(initial_variables)
+	if not initial_variables_check.get("ok", false):
+		_emit_error("Initial variable snapshot failed: %s" % String(initial_variables_check.get("error", "unknown")))
 		return
 
 	_state = STATE_RUNNING
@@ -156,6 +160,9 @@ func get_state() -> Dictionary:
 		"exhaustiveChoiceStack": _exhaustive_choice_stack.duplicate(true),
 		"trace": _trace_records.duplicate(true)
 	}
+
+func get_variable_snapshot() -> Dictionary:
+	return _variables.duplicate(true)
 
 func create_save_snapshot() -> Dictionary:
 	return {
@@ -518,6 +525,18 @@ func _initialize_variables() -> Dictionary:
 		}
 		_variables[name] = parsed.get("value")
 
+	return {"ok": true, "error": ""}
+
+func _apply_initial_variables(initial_variables: Dictionary) -> Dictionary:
+	for name in initial_variables.keys():
+		var variable_name := String(name)
+		if not _variable_defs.has(variable_name):
+			continue
+		var def: Dictionary = _variable_defs[variable_name]
+		var parsed := _parse_value_for_type(initial_variables[name], String(def.get("type", "")))
+		if not parsed.get("ok", false):
+			return {"ok": false, "error": "Invalid initial value for %s: %s" % [variable_name, String(parsed.get("error", "unknown"))]}
+		_variables[variable_name] = parsed.get("value")
 	return {"ok": true, "error": ""}
 
 func _get_available_choices(node: Dictionary) -> Dictionary:

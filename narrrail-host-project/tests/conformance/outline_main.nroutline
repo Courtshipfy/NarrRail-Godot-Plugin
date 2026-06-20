@@ -1,0 +1,74 @@
+meta:
+  schemaVersion: 1
+  railId: outline_main
+  title: Outline Main
+  entryNodeId: rail_start
+
+nodes:
+  - nodeId: rail_start
+    nodeType: Note
+    title: Start
+
+  - nodeId: chapter
+    nodeType: Story
+    title: Chapter
+    storyId: outline_chapter
+
+  - nodeId: route_check
+    nodeType: Branch
+    title: Route Check
+    branches:
+      - label: A Route
+        logic: All
+        terms:
+          - variable:
+              name: Route
+              type: String
+              scope: Global
+            operator: "=="
+            compareValue: A
+
+  - nodeId: route_a
+    nodeType: Story
+    title: Route A
+    storyId: outline_route_a
+
+  - nodeId: route_b
+    nodeType: Story
+    title: Route B
+    storyId: outline_route_b
+
+  - nodeId: rail_end
+    nodeType: End
+    title: End
+
+edges:
+  - sourceNodeId: rail_start
+    sourceHandle: ""
+    targetNodeId: chapter
+    priority: 0
+
+  - sourceNodeId: chapter
+    sourceHandle: ""
+    targetNodeId: route_check
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-0
+    targetNodeId: route_a
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-fallback
+    targetNodeId: route_b
+    priority: 99
+
+  - sourceNodeId: route_a
+    sourceHandle: ""
+    targetNodeId: rail_end
+    priority: 0
+
+  - sourceNodeId: route_b
+    sourceHandle: ""
+    targetNodeId: rail_end
+    priority: 0

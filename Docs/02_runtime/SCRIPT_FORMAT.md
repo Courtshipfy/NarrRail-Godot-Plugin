@@ -3,9 +3,13 @@
 ## 1. 适用范围
 
 本文档定义了 NarrRail 用于导入/导出和离线校验的脚本文件格式。
-当前基准格式：YAML（统一文件后缀 `.nrstory`）。
+当前基准格式：YAML。
 
-## 2. 根结构
+- 剧情脚本与全局配置：`.nrstory`
+- 剧情总纲：`.nroutline`
+- 旧版剧情总纲后缀 `.nrrail` 仍可读取和同步，但新文件应使用 `.nroutline`
+
+## 2. 剧情脚本根结构
 
 ```yaml
 meta:
@@ -212,7 +216,143 @@ terms:
   - 已知的旧版本：在内存中迁移到最新版本
 - 运行时资产的迁移入口位于 `UNarrRailStoryAsset::PostLoad()`。
 
-## 11. 最小示例
+## 11. 剧情总纲 `.nroutline`
+
+剧情总纲是多个 `.nrstory` 之上的编排层。单个 `.nrstory` 继续负责对白、选择、变量操作和局部条件；`.nroutline` 负责决定多个脚本的顺序、分支与汇合关系。
+
+### 11.1 根结构
+
+```yaml
+meta:
+  schemaVersion: 1
+  railId: main_story
+  title: 主线总纲
+  entryNodeId: rail_start
+
+nodes: []
+edges: []
+```
+
+必需字段：
+- `meta`
+- `nodes`
+- `edges`
+
+### 11.2 Meta
+
+| 字段 | 类型 | 必需 | 说明 |
+|---|---|---|---|
+| `schemaVersion` | int | 是 | 当前值为 `1` |
+| `railId` | string | 是 | 唯一总纲 ID |
+| `title` | string | 否 | 展示标题 |
+| `entryNodeId` | string | 是 | 必须存在于 `nodes[].nodeId` 中 |
+
+### 11.3 总纲节点
+
+支持的 `nodeType`：
+
+- `Story`：引用一个已有 `.nrstory` 的 `meta.storyId`
+- `Branch`：根据当前共享变量快照选择下一条总纲路径
+- `Note`：章节标记或备注，运行时自动继续
+- `End`：总纲结束
+
+`Story.storyId` 按 `.nrstory` 内部 `meta.storyId` 解析，不按文件名解析。
+
+### 11.4 Branch 节点
+
+```yaml
+- nodeId: route_check
+  nodeType: Branch
+  title: 路线判断
+  branches:
+    - label: A路线
+      logic: All
+      terms:
+        - variable:
+            name: Route
+            type: String
+            scope: Global
+          operator: "=="
+          compareValue: A
+```
+
+分支规则：
+- `branches` 从上到下依次求值
+- 命中第一个满足条件的分支后立即离开 Branch 节点
+- 分支 `0` 对应出边 `sourceHandle: branch-0`
+- 没有分支命中时走 `sourceHandle: branch-fallback`
+
+### 11.5 同步与资源
+
+Godot 插件同步故事仓库时会扫描：
+
+- `*.nrstory`
+- `*.nroutline`
+- legacy `*.nrrail`
+
+如果同一目录下同一 stem 同时存在 `.nroutline` 和 `.nrrail`，优先同步 `.nroutline`。同步生成的总纲资源为 `NarrRailOutlineResource`，资源文件名使用 `_outline.tres` 后缀，避免与同名 `.nrstory` 生成资源碰撞。
+
+### 11.6 最小总纲示例
+
+```yaml
+meta:
+  schemaVersion: 1
+  railId: main_story
+  title: 主线总纲
+  entryNodeId: chapter_01
+
+nodes:
+  - nodeId: chapter_01
+    nodeType: Story
+    title: 第一章
+    storyId: chapter_01_intro
+
+  - nodeId: route_check
+    nodeType: Branch
+    title: 路线判断
+    branches:
+      - label: A路线
+        logic: All
+        terms:
+          - variable:
+              name: Route
+              type: String
+              scope: Global
+            operator: "=="
+            compareValue: A
+
+  - nodeId: route_a
+    nodeType: Story
+    title: A路线开场
+    storyId: route_a_start
+
+  - nodeId: end
+    nodeType: End
+    title: 总纲结束
+
+edges:
+  - sourceNodeId: chapter_01
+    sourceHandle: ""
+    targetNodeId: route_check
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-0
+    targetNodeId: route_a
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-fallback
+    targetNodeId: end
+    priority: 99
+
+  - sourceNodeId: route_a
+    sourceHandle: ""
+    targetNodeId: end
+    priority: 0
+```
+
+## 12. 最小剧情示例
 
 ```yaml
 meta:

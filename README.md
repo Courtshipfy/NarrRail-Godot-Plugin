@@ -1,16 +1,18 @@
 # NarrRail Godot Plugin
 
-NarrRail 的 Godot 运行时插件，面向 AVG/视觉小说工作流。插件支持 `.nrstory` 导入、外部故事仓库同步、对话状态机执行、分支选择、变量/条件计算和基础运行时事件。
+NarrRail 的 Godot 运行时插件，面向 AVG/视觉小说工作流。插件支持 `.nrstory` 导入、`.nroutline` 剧情总纲、外部故事仓库同步、对话状态机执行、分支选择、变量/条件计算和基础运行时事件。
 
 ## Features
 
 - 导入 `.nrstory` 为 Godot Resource
-- 从外部故事仓库同步 `.nrstory`，生成 `.tres` 资源
+- 导入 `.nroutline` 剧情总纲为 Godot Resource，并兼容旧 `.nrrail`
+- 从外部故事仓库同步 `.nrstory` / `.nroutline` / `.nrrail`，生成 `.tres` 资源
 - 支持 `Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `Condition` / `EmitEvent` / `End`
 - 支持 `Bool` / `Int` / `Float` / `String` 变量默认值初始化
 - 支持 `All` 条件逻辑和 `==` / `!=` / `>` / `>=` / `<` / `<=`
 - 支持 `enterActions` / `exitActions` 中的 `Set` / `Add` / `Subtract` / `EmitEvent`
 - 提供运行时信号：`line_changed` / `choices_changed` / `ended` / `error_raised` / `variable_changed` / `event_emitted`
+- 提供 `NarrRailOutlineRunner`，可按总纲串联多个 `.nrstory` 并执行 Branch 路由
 - 提供运行时存档快照 API：`create_save_snapshot()` / `restore_save_snapshot(story_data, snapshot)`
 - 提供可选运行时 trace logging：`trace_logged` / `get_trace_records()`
 - 示例工程支持保存/读取 `user://narrrail_demo_save.json`
@@ -104,7 +106,7 @@ zip 中包含可复制到项目中的 `narrrail/` 插件目录，以及 `README.
 Project > Tools > NarrRail Sync Stories
 ```
 
-首次同步会要求选择外部故事仓库目录。插件会递归扫描该目录下的 `.nrstory` 文件，并在 Godot 项目中生成 `.tres` 资源。
+首次同步会要求选择外部故事仓库目录。插件会递归扫描该目录下的 `.nrstory`、`.nroutline` 和 legacy `.nrrail` 文件，并在 Godot 项目中生成 `.tres` 资源。
 
 同步行为：
 
@@ -113,6 +115,9 @@ Project > Tools > NarrRail Sync Stories
 - 生成资源会记录原始 `source_path`
 - 普通故事文件会生成 `NarrRailStoryResource`
 - `meta.configType: GlobalConfig` 文件会生成 `NarrRailGlobalConfigResource`
+- `.nroutline` / `.nrrail` 总纲文件会生成 `NarrRailOutlineResource`
+- 同名 `.nroutline` 和 `.nrrail` 同时存在时优先同步 `.nroutline`
+- 同步生成的总纲资源使用 `_outline.tres` 后缀，避免与同名故事资源碰撞
 - 加载同步故事资产时，会自动合并同仓库 `GlobalConfig` 中的变量定义
 - 再次同步会更新已有资源
 - 同步确认后会删除目标目录下已经失去源文件的旧生成资源

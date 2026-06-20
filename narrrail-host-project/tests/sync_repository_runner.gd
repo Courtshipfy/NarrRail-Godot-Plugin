@@ -30,7 +30,7 @@ func _run() -> void:
 		"delete_stale": true
 	})
 	_expect_equal("report failed", report.get("failed", -1), 0)
-	_expect_equal("report created", report.get("created", -1), 4)
+	_expect_equal("report created", report.get("created", -1), 5)
 	_expect_equal("report deleted", report.get("deleted", -1), 1)
 
 	var generated_root := "%s/%s" % [TARGET_ROOT, REPO_NAME]
@@ -38,6 +38,7 @@ func _run() -> void:
 	_expect_story("%s/nested/branch.tres" % generated_root, "sync_branch", "%s/nested/branch.nrstory" % _repo_abs)
 	_expect_story("%s/nested/global_ref.tres" % generated_root, "sync_global_ref", "%s/nested/global_ref.nrstory" % _repo_abs)
 	_expect_global_config("%s/global_config.tres" % generated_root, "%s/global_config.nrstory" % _repo_abs)
+	_expect_outline("%s/main_story_outline.tres" % generated_root, "sync_outline", "%s/main_story.nroutline" % _repo_abs)
 	_expect_global_config_runtime("%s/nested/global_ref.tres" % generated_root)
 	if ResourceLoader.exists("%s/deleted.tres" % generated_root):
 		_failures.append("stale generated resource was not deleted")
@@ -51,6 +52,8 @@ func _create_fixture_repo() -> void:
 	_write_file("%s/main.nrstory" % _repo_abs, _story_text("sync_main", "N_Start", "main_line"))
 	_write_file("%s/nested/branch.nrstory" % _repo_abs, _story_text("sync_branch", "N_Branch", "branch_line"))
 	_write_file("%s/nested/global_ref.nrstory" % _repo_abs, _global_ref_story_text())
+	_write_file("%s/main_story.nroutline" % _repo_abs, _outline_text("sync_outline", "sync_main"))
+	_write_file("%s/main_story.nrrail" % _repo_abs, _outline_text("legacy_outline", "sync_branch"))
 	_write_file("%s/global_config.nrstory" % _repo_abs, """meta:
   schemaVersion: 1
   configType: GlobalConfig
@@ -146,6 +149,30 @@ edges:
     sourceHandle: ""
 """
 
+func _outline_text(rail_id: String, story_id: String) -> String:
+	return """meta:
+  schemaVersion: 1
+  railId: %s
+  title: Sync Outline
+  entryNodeId: start
+
+nodes:
+  - nodeId: start
+    nodeType: Story
+    title: Start
+    storyId: %s
+
+  - nodeId: end
+    nodeType: End
+    title: End
+
+edges:
+  - sourceNodeId: start
+    sourceHandle: ""
+    targetNodeId: end
+    priority: 0
+""" % [rail_id, story_id]
+
 func _expect_story(path: String, story_id: String, source_path: String) -> void:
 	var resource := ResourceLoader.load(path)
 	if resource == null:
@@ -164,6 +191,15 @@ func _expect_global_config(path: String, source_path: String) -> void:
 	_expect_equal("%s schema_version" % path, int(resource.get("schema_version")), 1)
 	_expect_equal("%s variables" % path, resource.get("variables").size(), 1)
 	_expect_equal("%s preset_speakers" % path, resource.get("preset_speakers").size(), 1)
+
+func _expect_outline(path: String, rail_id: String, source_path: String) -> void:
+	var resource := ResourceLoader.load(path)
+	if resource == null:
+		_failures.append("Missing generated outline resource: %s" % path)
+		return
+	_expect_equal("%s source_path" % path, String(resource.get("source_path")), source_path)
+	var outline: Dictionary = resource.get("outline_data")
+	_expect_equal("%s railId" % path, String(outline.get("meta", {}).get("railId", "")), rail_id)
 
 func _expect_global_config_runtime(path: String) -> void:
 	var loader_script: Script = load(STORY_RESOURCE_LOADER_SCRIPT)

@@ -7,7 +7,7 @@ const SETTING_RESOURCE_ROOT := "narrrail/story_resource_root"
 const DEFAULT_RESOURCE_ROOT := "res://narrrail_stories"
 const SYNC_SCRIPT := "res://addons/narrrail/editor/story_repository_sync.gd"
 
-var _importer: EditorImportPlugin
+var _importers: Array[EditorImportPlugin] = []
 var _folder_dialog: EditorFileDialog
 var _confirm_dialog: ConfirmationDialog
 var _summary_dialog: AcceptDialog
@@ -19,12 +19,8 @@ func _enter_tree() -> void:
 	if sync_script != null:
 		sync_script.call("ensure_project_settings")
 
-	var importer_script: Script = load("res://addons/narrrail/importer/nrstory_import_plugin.gd")
-	if importer_script == null:
-		push_error("[NarrRail] Failed to load import plugin script")
-		return
-	_importer = importer_script.new()
-	add_import_plugin(_importer)
+	_add_importer("res://addons/narrrail/importer/nrstory_import_plugin.gd")
+	_add_importer("res://addons/narrrail/importer/nroutline_import_plugin.gd")
 	add_tool_menu_item("NarrRail Sync Stories", _on_sync_stories_pressed)
 	_create_dialogs()
 	_create_dock()
@@ -36,9 +32,9 @@ func _exit_tree() -> void:
 		remove_control_from_docks(_dock)
 		_dock.queue_free()
 		_dock = null
-	if _importer != null:
-		remove_import_plugin(_importer)
-		_importer = null
+	for importer in _importers:
+		remove_import_plugin(importer)
+	_importers.clear()
 	if _folder_dialog != null:
 		_folder_dialog.queue_free()
 		_folder_dialog = null
@@ -66,6 +62,15 @@ func _create_dialogs() -> void:
 	_summary_dialog = AcceptDialog.new()
 	_summary_dialog.title = "NarrRail Story Repository Sync"
 	add_child(_summary_dialog)
+
+func _add_importer(script_path: String) -> void:
+	var importer_script: Script = load(script_path)
+	if importer_script == null:
+		push_error("[NarrRail] Failed to load import plugin script: %s" % script_path)
+		return
+	var importer: EditorImportPlugin = importer_script.new()
+	add_import_plugin(importer)
+	_importers.append(importer)
 
 func _create_dock() -> void:
 	_dock = VBoxContainer.new()
@@ -105,7 +110,7 @@ func _on_repository_dir_selected(path: String) -> void:
 
 func _prompt_sync(repository_path: String) -> void:
 	_pending_repository_path = repository_path
-	_confirm_dialog.dialog_text = "Sync .nrstory files from:\n%s\n\nThis may update generated resources and delete stale NarrRail resources under the configured sync target." % repository_path
+	_confirm_dialog.dialog_text = "Sync NarrRail story and outline files from:\n%s\n\nThis may update generated resources and delete stale NarrRail resources under the configured sync target." % repository_path
 	_confirm_dialog.popup_centered()
 
 func _run_pending_sync() -> void:

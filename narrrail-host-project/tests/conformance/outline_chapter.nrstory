@@ -1,0 +1,49 @@
+meta:
+  schemaVersion: 1
+  storyId: outline_chapter
+  entryNodeId: N_Choice
+
+variables:
+  - name: Route
+    type: String
+    scope: Global
+    defaultValue: ""
+
+nodes:
+  - nodeId: N_Choice
+    nodeType: Choice
+    choices:
+      - textKey: route_a
+        targetNodeId: N_SetA
+      - textKey: route_b
+        targetNodeId: N_SetB
+
+  - nodeId: N_SetA
+    nodeType: SetVariable
+    actions:
+      - actionType: Set
+        variable:
+          name: Route
+          type: String
+        value: A
+
+  - nodeId: N_SetB
+    nodeType: SetVariable
+    actions:
+      - actionType: Set
+        variable:
+          name: Route
+          type: String
+        value: B
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_SetA
+    targetNodeId: N_End
+    priority: 0
+
+  - sourceNodeId: N_SetB
+    targetNodeId: N_End
+    priority: 0

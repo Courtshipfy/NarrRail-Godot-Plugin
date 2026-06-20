@@ -1,0 +1,25 @@
+meta:
+  schemaVersion: 1
+  storyId: outline_route_a
+  entryNodeId: N_Start
+
+variables:
+  - name: Route
+    type: String
+    scope: Global
+    defaultValue: ""
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: route_a_line
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_End
+    priority: 0

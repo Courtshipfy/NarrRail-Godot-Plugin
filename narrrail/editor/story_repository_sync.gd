@@ -8,8 +8,10 @@ const SETTING_RESOURCE_ROOT := "narrrail/story_resource_root"
 
 const DEFAULT_RESOURCE_ROOT := "res://narrrail_stories"
 const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
+const OUTLINE_LOADER_SCRIPT := "res://addons/narrrail/importer/nroutline_loader.gd"
 const STORY_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_story_resource.gd"
 const GLOBAL_CONFIG_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_global_config_resource.gd"
+const OUTLINE_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_outline_resource.gd"
 
 static func ensure_project_settings() -> void:
 	_ensure_setting(SETTING_REPOSITORY_PATH, "", TYPE_STRING)
@@ -49,18 +51,21 @@ static func sync_repository(repository_path: String, resource_root: String = DEF
 			report.errors.append(report.git_message)
 			return report
 
-	var source_files := _find_nrstory_files(repo_abs)
+	var source_files := _find_narrrail_files(repo_abs)
 	if source_files.is_empty():
-		report.errors.append("No .nrstory files were found in: %s" % repo_abs)
+		report.errors.append("No NarrRail story or outline files were found in: %s" % repo_abs)
 		return report
 
 	var loader_script: Script = load(LOADER_SCRIPT)
+	var outline_loader_script: Script = load(OUTLINE_LOADER_SCRIPT)
 	var story_resource_script: Script = load(STORY_RESOURCE_SCRIPT)
 	var global_config_resource_script: Script = load(GLOBAL_CONFIG_RESOURCE_SCRIPT)
-	if loader_script == null or story_resource_script == null or global_config_resource_script == null:
+	var outline_resource_script: Script = load(OUTLINE_RESOURCE_SCRIPT)
+	if loader_script == null or outline_loader_script == null or story_resource_script == null or global_config_resource_script == null or outline_resource_script == null:
 		report.errors.append("Failed to load NarrRail sync scripts/resources")
 		return report
 
+	var story_ids := _collect_story_ids(source_files, loader_script, report, repo_abs)
 	var expected_paths: Dictionary = {}
 	for source_file in source_files:
 		var relative_path := _relative_path(repo_abs, source_file)
@@ -83,7 +88,7 @@ static func sync_repository(repository_path: String, resource_root: String = DEF
 			continue
 
 		expected_paths[target_path] = source_file
-		var result := _write_resource(kind, source_file, target_path, loader_script, story_resource_script, global_config_resource_script)
+		var result := _write_resource(kind, source_file, target_path, loader_script, outline_loader_script, story_resource_script, global_config_resource_script, outline_resource_script, story_ids)
 		if not result.get("ok", false):
 			report.failed += 1
 			report.errors.append("%s: %s" % [relative_path, String(result.get("error", "unknown"))])
@@ -106,7 +111,7 @@ static func sync_repository(repository_path: String, resource_root: String = DEF
 
 	return report
 
-static func _write_resource(kind: String, source_file: String, target_path: String, loader_script: Script, story_resource_script: Script, global_config_resource_script: Script) -> Dictionary:
+static func _write_resource(kind: String, source_file: String, target_path: String, loader_script: Script, outline_loader_script: Script, story_resource_script: Script, global_config_resource_script: Script, outline_resource_script: Script, story_ids: Array) -> Dictionary:
 	var existing := ResourceLoader.load(target_path) if ResourceLoader.exists(target_path) else null
 	var resource: Resource
 	var created := existing == null
@@ -129,6 +134,13 @@ static func _write_resource(kind: String, source_file: String, target_path: Stri
 			resource.set("variables", config.get("variables", []))
 			resource.set("preset_speakers", config.get("presetSpeakers", []))
 			resource.set("config_data", config)
+			resource.set("source_path", source_file)
+		"Outline":
+			var loaded_outline: Dictionary = outline_loader_script.call("load_outline", source_file, story_ids)
+			if not loaded_outline.get("ok", false):
+				return {"ok": false, "error": loaded_outline.get("error", "Outline load failed")}
+			resource = existing if existing != null and _has_property(existing, "outline_data") else outline_resource_script.new()
+			resource.set("outline_data", loaded_outline.get("outline", {}))
 			resource.set("source_path", source_file)
 		_:
 			return {"ok": false, "error": "Unknown NarrRail file kind: %s" % kind}
@@ -186,7 +198,7 @@ static func _find_resource_files(abs_dir: String) -> Array:
 	dir.list_dir_end()
 	return out
 
-static func _find_nrstory_files(abs_dir: String) -> Array:
+static func _find_narrrail_files(abs_dir: String) -> Array:
 	var out: Array = []
 	var dir := DirAccess.open(abs_dir)
 	if dir == null:
@@ -197,21 +209,66 @@ static func _find_nrstory_files(abs_dir: String) -> Array:
 		var child := "%s/%s" % [abs_dir, name]
 		if dir.current_is_dir():
 			if not name.begins_with("."):
-				out.append_array(_find_nrstory_files(child))
-		elif name.ends_with(".nrstory"):
+				out.append_array(_find_narrrail_files(child))
+		elif _is_narrrail_source_file(name):
 			out.append(child)
 		name = dir.get_next()
 	dir.list_dir_end()
 	out.sort()
-	return out
+	return _filter_legacy_outline_files(out)
 
 static func _target_resource_path(target_root: String, relative_source_path: String) -> String:
-	var without_ext := relative_source_path.trim_suffix(".nrstory")
+	var is_outline := relative_source_path.ends_with(".nroutline") or relative_source_path.ends_with(".nrrail")
+	var without_ext := relative_source_path
+	for ext in [".nrstory", ".nroutline", ".nrrail"]:
+		without_ext = without_ext.trim_suffix(ext)
 	var parts := without_ext.split("/", false)
 	var out := target_root
 	for part in parts:
 		out += "/%s" % _sanitize_segment(part)
+	if is_outline:
+		out += "_outline"
 	return "%s.tres" % out
+
+static func _is_narrrail_source_file(name: String) -> bool:
+	return name.ends_with(".nrstory") or name.ends_with(".nroutline") or name.ends_with(".nrrail")
+
+static func _filter_legacy_outline_files(paths: Array) -> Array:
+	var modern_outline_stems: Dictionary = {}
+	for path in paths:
+		if String(path).ends_with(".nroutline"):
+			modern_outline_stems[String(path).trim_suffix(".nroutline")] = true
+
+	var out: Array = []
+	for path in paths:
+		var text := String(path)
+		if text.ends_with(".nrrail") and modern_outline_stems.has(text.trim_suffix(".nrrail")):
+			continue
+		out.append(path)
+	return out
+
+static func _collect_story_ids(source_files: Array, loader_script: Script, report: Dictionary, repo_abs: String) -> Array:
+	var out: Array = []
+	var seen: Dictionary = {}
+	for source_file in source_files:
+		if not String(source_file).ends_with(".nrstory"):
+			continue
+		var doc: Dictionary = loader_script.call("load_document", source_file)
+		if not doc.get("ok", false):
+			continue
+		if String(doc.get("kind", "Unknown")) != "Story":
+			continue
+		var data: Dictionary = doc.get("data", {})
+		var story_id := String(data.get("meta", {}).get("storyId", ""))
+		if story_id.is_empty():
+			continue
+		if seen.has(story_id):
+			report.errors.append("Duplicate storyId while syncing repository: %s" % story_id)
+			report.failed += 1
+			continue
+		seen[story_id] = true
+		out.append(story_id)
+	return out
 
 static func _relative_path(repo_abs: String, source_abs: String) -> String:
 	var repo := repo_abs.replace("\\", "/").trim_suffix("/")

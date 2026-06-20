@@ -1,7 +1,9 @@
 extends SceneTree
 
 const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
+const OUTLINE_LOADER_SCRIPT := "res://addons/narrrail/importer/nroutline_loader.gd"
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
+const OUTLINE_RUNNER_SCRIPT := "res://addons/narrrail/runtime/narrrail_outline_runner.gd"
 
 var _failures: Array[String] = []
 
@@ -30,6 +32,8 @@ func _run() -> void:
 	_run_save_restore_waiting_choice()
 	_run_save_restore_multi_dialogue()
 	_run_save_restore_after_other_story()
+	_run_outline_branch_route_a()
+	_run_outline_branch_fallback()
 	_run_invalid_parser_missing_fields()
 	_run_invalid_validator_refs()
 	_run_invalid_choice_timer()
@@ -657,6 +661,128 @@ func _run_save_restore_after_other_story() -> void:
 		"END"
 	])
 	_expect_equal("save_restore_after_other_story errors", errors, [])
+
+func _run_outline_branch_route_a() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var runner := _new_outline_runner(trace, errors)
+	if runner == null:
+		return
+
+	var outline := _load_outline("res://tests/conformance/outline_main.nroutline")
+	var library := _outline_story_library()
+	runner.start(outline, library)
+	runner.choose(0)
+	runner.next()
+
+	_expect_equal("outline_branch_route_a trace", trace, [
+		"OUTLINE:rail_start:Note",
+		"OUTLINE:chapter:Story",
+		"CHOICE:chapter:2",
+		"VAR:chapter:Route:A",
+		"OUTLINE:route_check:Branch",
+		"BRANCH:route_check:branch-0:route_a",
+		"OUTLINE:route_a:Story",
+		"LINE:route_a:outline_route_a:N_Start:route_a_line",
+		"OUTLINE:rail_end:End",
+		"OUTLINE_END"
+	])
+	_expect_equal("outline_branch_route_a errors", errors, [])
+	_expect_equal("outline_branch_route_a variables", runner.get_state().get("variables", {}), {"Route": "A"})
+
+func _run_outline_branch_fallback() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var runner := _new_outline_runner(trace, errors)
+	if runner == null:
+		return
+
+	var outline := _load_outline("res://tests/conformance/outline_main.nroutline")
+	var library := _outline_story_library()
+	runner.start(outline, library)
+	runner.choose(1)
+	runner.next()
+
+	_expect_equal("outline_branch_fallback trace", trace, [
+		"OUTLINE:rail_start:Note",
+		"OUTLINE:chapter:Story",
+		"CHOICE:chapter:2",
+		"VAR:chapter:Route:B",
+		"OUTLINE:route_check:Branch",
+		"BRANCH:route_check:branch-fallback:route_b",
+		"OUTLINE:route_b:Story",
+		"LINE:route_b:outline_route_b:N_Start:route_b_line",
+		"OUTLINE:rail_end:End",
+		"OUTLINE_END"
+	])
+	_expect_equal("outline_branch_fallback errors", errors, [])
+	_expect_equal("outline_branch_fallback variables", runner.get_state().get("variables", {}), {"Route": "B"})
+
+func _new_outline_runner(trace: Array, errors: Array) -> RefCounted:
+	var runner_script: Script = load(OUTLINE_RUNNER_SCRIPT)
+	if runner_script == null:
+		_failures.append("Failed to load outline runner script")
+		return null
+	var runner: RefCounted = runner_script.new()
+	runner.outline_node_entered.connect(func(payload: Dictionary) -> void:
+		trace.append("OUTLINE:%s:%s" % [
+			String(payload.get("nodeId", "")),
+			String(payload.get("nodeType", ""))
+		])
+	)
+	runner.outline_branch_matched.connect(func(payload: Dictionary) -> void:
+		trace.append("BRANCH:%s:%s:%s" % [
+			String(payload.get("nodeId", "")),
+			String(payload.get("sourceHandle", "")),
+			String(payload.get("targetNodeId", ""))
+		])
+	)
+	runner.line_changed.connect(func(payload: Dictionary) -> void:
+		trace.append("LINE:%s:%s:%s:%s" % [
+			String(payload.get("outlineNodeId", "")),
+			String(payload.get("storyId", "")),
+			String(payload.get("nodeId", "")),
+			String(payload.get("textKey", ""))
+		])
+	)
+	runner.choices_changed.connect(func(choices: Array) -> void:
+		trace.append("CHOICE:%s:%d" % [
+			String(runner.get_state().get("currentOutlineNodeId", "")),
+			choices.size()
+		])
+	)
+	runner.variable_changed.connect(func(payload: Dictionary) -> void:
+		trace.append("VAR:%s:%s:%s" % [
+			String(payload.get("outlineNodeId", "")),
+			String(payload.get("name", "")),
+			str(payload.get("newValue"))
+		])
+	)
+	runner.ended.connect(func() -> void:
+		trace.append("OUTLINE_END")
+	)
+	runner.error_raised.connect(func(message: String) -> void:
+		errors.append(message)
+	)
+	return runner
+
+func _load_outline(path: String) -> Dictionary:
+	var loader_script: Script = load(OUTLINE_LOADER_SCRIPT)
+	if loader_script == null:
+		_failures.append("Failed to load outline loader script")
+		return {}
+	var result: Dictionary = loader_script.call("load_outline", path, ["outline_chapter", "outline_route_a", "outline_route_b"])
+	if not result.get("ok", false):
+		_failures.append("Failed to load outline %s: %s" % [path, String(result.get("error", "unknown"))])
+		return {}
+	return result.get("outline", {})
+
+func _outline_story_library() -> Dictionary:
+	return {
+		"outline_chapter": _load_story("res://tests/conformance/outline_chapter.nrstory"),
+		"outline_route_a": _load_story("res://tests/conformance/outline_route_a.nrstory"),
+		"outline_route_b": _load_story("res://tests/conformance/outline_route_b.nrstory")
+	}
 
 func _run_invalid_parser_missing_fields() -> void:
 	var result := _load_story_result("res://tests/conformance/invalid_parser_missing_fields.nrstory")

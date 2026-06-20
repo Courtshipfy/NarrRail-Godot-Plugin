@@ -274,6 +274,8 @@ static func detect_file_kind(data: Dictionary) -> String:
 		var config_type := String(meta.get("configType", ""))
 		if config_type.to_lower() == "globalconfig":
 			return "GlobalConfig"
+		if meta.has("railId"):
+			return "Outline"
 		if meta.has("storyId"):
 			return "Story"
 	if data.has("nodes") or data.has("edges"):

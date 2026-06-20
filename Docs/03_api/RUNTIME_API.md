@@ -10,13 +10,14 @@ This document defines the current public runtime API surface for game-side integ
 
 ## Lifecycle Methods
 
-### `start(story_data: Dictionary) -> void`
+### `start(story_data: Dictionary, initial_variables: Dictionary = {}) -> void`
 
 Initialize session state and enter `meta.entryNodeId`.
 
 Behavior:
 - validates story shape/refs before runtime flow
 - initializes variables from `variables[]`
+- applies matching values from `initial_variables` after defaults are initialized
 - emits initial `line_changed` or `choices_changed` depending on first node
 
 Failure:
@@ -58,6 +59,10 @@ Returns current runtime snapshot:
 - `exhaustedChoiceTargets`
 - `exhaustiveChoiceStack`
 - `trace`
+
+### `get_variable_snapshot() -> Dictionary`
+
+Returns a duplicate of the current variable map. `NarrRailOutlineRunner` uses this to carry shared values between story sessions.
 
 ### `set_trace_enabled(enabled: bool) -> void`
 
@@ -185,6 +190,62 @@ session.start(story_dict)
 # session.next()
 # session.choose(0)
 ```
+
+## Outline Runtime
+
+- Class: `NarrRailOutlineRunner`
+- Script: `res://addons/narrrail/runtime/narrrail_outline_runner.gd`
+- Type: `RefCounted`
+
+`NarrRailOutlineRunner` executes a `.nroutline` graph and delegates each `Story` node to an internal `NarrRailSession`.
+
+### `start(outline_data: Dictionary, story_library: Dictionary, initial_variables: Dictionary = {}) -> void`
+
+Starts the outline at `meta.entryNodeId`.
+
+`story_library` maps `storyId` to one of:
+- a parsed story `Dictionary`
+- a story resource path `String`
+- a `NarrRailStoryResource`
+
+The runner passes the shared variable snapshot into every story session. Variables changed by one story are available to later outline Branch nodes and later stories that define matching variables.
+
+### `next() -> void`
+
+Forwards to the active story session. If the active story ends, the runner returns to the outline graph and continues to the next outline node.
+
+### `choose(index: int) -> void`
+
+Forwards a choice selection to the active story session.
+
+### `advance_time(delta_seconds: float) -> void`
+
+Forwards choice timer time to the active story session.
+
+### `get_state() -> Dictionary`
+
+Returns:
+- `state`
+- `currentOutlineNodeId`
+- `activeStoryId`
+- `activeStoryState`
+- `variables`
+- `error`
+
+### Outline Signals
+
+- `outline_node_entered(payload: Dictionary)`
+- `outline_branch_matched(payload: Dictionary)`
+- `line_changed(payload: Dictionary)`
+- `choices_changed(choices: Array)`
+- `variable_changed(payload: Dictionary)`
+- `event_emitted(payload: Dictionary)`
+- `choice_timer_changed(payload: Dictionary)`
+- `choice_timed_out(payload: Dictionary)`
+- `ended()`
+- `error_raised(message: String)`
+
+Forwarded story payloads include `outlineNodeId` and `storyId` where applicable.
 
 ## Sample References
 
