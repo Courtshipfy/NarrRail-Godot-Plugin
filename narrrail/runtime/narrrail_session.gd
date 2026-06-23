@@ -965,7 +965,7 @@ func _execute_variable_action(action: Dictionary, phase: String, node_id: String
 	return {"ok": true, "error": ""}
 
 func _execute_emit_event_action(action: Dictionary, phase: String, node_id: String) -> Dictionary:
-	var event_id := String(action.get("eventId", ""))
+	var event_id := String(action.get("eventId", "")).strip_edges()
 	if event_id.is_empty():
 		return {"ok": false, "error": "EmitEvent action has empty eventId on node %s" % node_id}
 
@@ -981,7 +981,7 @@ func _execute_emit_event_action(action: Dictionary, phase: String, node_id: Stri
 
 func _execute_emit_event_node(node: Dictionary) -> Dictionary:
 	var node_id := String(node.get("nodeId", ""))
-	var event_id := String(node.get("eventId", ""))
+	var event_id := String(node.get("eventId", "")).strip_edges()
 	if event_id.is_empty():
 		return {"ok": false, "error": "EmitEvent node has empty eventId: %s" % node_id}
 

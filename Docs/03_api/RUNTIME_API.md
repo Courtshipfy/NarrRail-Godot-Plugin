@@ -147,6 +147,14 @@ Emitted when `Set/Add/Subtract` mutates variable state.
 
 Emitted when an `EmitEvent` action or standalone `EmitEvent` node is executed.
 
+Use `NarrRailEventRouter` when you want event IDs to trigger engine behavior directly:
+
+```gdscript
+var router := NarrRailEventRouter.new()
+router.register("123", Callable(self, "_on_event_123"))
+session.event_emitted.connect(router.dispatch)
+```
+
 ### `trace_logged(payload: Dictionary)`
 
 Emitted when trace logging is enabled and the runtime records a trace event.

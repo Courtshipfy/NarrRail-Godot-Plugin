@@ -64,6 +64,13 @@ static func validate_story(story: Dictionary) -> Array:
 				diagnostics.append(_diag("error", "CHOICE_TARGET_NOT_FOUND", "nodes[%d].choices[%d].targetNodeId" % [i, j], "Choice target not found: %s" % target, "Create the target node or update this choice targetNodeId."))
 		diagnostics.append_array(_validate_choice_timer(node, i, edges, node_ids))
 
+	for i in range(nodes.size()):
+		var node: Dictionary = nodes[i]
+		var node_type := String(node.get("nodeType", ""))
+		if node_type == "EmitEvent" and String(node.get("eventId", "")).strip_edges().is_empty():
+			diagnostics.append(_diag("error", "EMIT_EVENT_ID_EMPTY", "nodes[%d].eventId" % i, "EmitEvent node eventId must not be empty", "Set eventId to the event identifier emitted by this node."))
+		diagnostics.append_array(_validate_node_actions(node, i))
+
 	# Orphan node warning (exclude entry)
 	var incoming: Dictionary = {}
 	for edge in edges:
@@ -80,6 +87,37 @@ static func validate_story(story: Dictionary) -> Array:
 			diagnostics.append(_diag("warning", "NODE_ORPHAN", "nodes[%d].nodeId" % i, "Orphan node (no incoming edge): %s" % node_id, "Connect this node from another node or remove it if unused."))
 
 	return diagnostics
+
+static func _validate_node_actions(node: Dictionary, node_index: int) -> Array:
+	var diagnostics: Array = []
+	for field in ["enterActions", "exitActions", "actions"]:
+		var actions = node.get(field, [])
+		if typeof(actions) != TYPE_ARRAY:
+			continue
+		for i in range((actions as Array).size()):
+			var action: Dictionary = (actions as Array)[i]
+			var action_type := String(action.get("actionType", ""))
+			var path := "nodes[%d].%s[%d]" % [node_index, field, i]
+			match action_type:
+				"Set", "Add", "Subtract":
+					var variable: Dictionary = action.get("variable", {})
+					var variable_name := _variable_ref_name(variable)
+					if variable_name.is_empty():
+						diagnostics.append(_diag("error", "ACTION_VARIABLE_EMPTY", "%s.variable" % path, "%s action variable must not be empty" % action_type, "Set variable.name or variable.variableName to an existing variable."))
+					if not action.has("value"):
+						diagnostics.append(_diag("error", "ACTION_VALUE_MISSING", "%s.value" % path, "%s action value is required" % action_type, "Set value to the mutation operand for this action."))
+				"EmitEvent":
+					if String(action.get("eventId", "")).strip_edges().is_empty():
+						diagnostics.append(_diag("error", "ACTION_EVENT_ID_EMPTY", "%s.eventId" % path, "EmitEvent action eventId must not be empty", "Set eventId to the event identifier emitted by this action."))
+				_:
+					diagnostics.append(_diag("error", "ACTION_TYPE_UNSUPPORTED", "%s.actionType" % path, "Unsupported actionType: %s" % action_type, "Use Set, Add, Subtract, or EmitEvent."))
+	return diagnostics
+
+static func _variable_ref_name(variable_ref: Dictionary) -> String:
+	var name := String(variable_ref.get("name", ""))
+	if name.is_empty():
+		name = String(variable_ref.get("variableName", ""))
+	return name
 
 static func _validate_choice_timer(node: Dictionary, node_index: int, edges: Array, node_ids: Dictionary) -> Array:
 	var diagnostics: Array = []

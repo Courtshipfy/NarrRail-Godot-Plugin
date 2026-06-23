@@ -2,6 +2,7 @@ extends Control
 
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const OUTLINE_RUNNER_SCRIPT := "res://addons/narrrail/runtime/narrrail_outline_runner.gd"
+const EVENT_ROUTER_SCRIPT := "res://addons/narrrail/runtime/narrrail_event_router.gd"
 const STORY_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/story_resource_loader.gd"
 const OUTLINE_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/outline_resource_loader.gd"
 const STORY_DIR := "res://sample/stories"
@@ -22,12 +23,15 @@ const SAVE_PATH := "user://narrrail_demo_save.json"
 @onready var status_label: Label = $Panel/Margin/VBox/BottomBar/StatusLabel
 
 var _session: RefCounted
+var _event_router: RefCounted
 var _story_paths: Array[String] = []
 var _story_labels: Dictionary = {}
 var _choice_timer_label: Label
+var _event_dialog: AcceptDialog
 var _current_mode := "story"
 
 func _ready() -> void:
+	_create_event_router()
 	next_button.pressed.connect(_on_next_pressed)
 	load_button.pressed.connect(_on_load_pressed)
 	refresh_button.pressed.connect(_on_refresh_pressed)
@@ -53,6 +57,8 @@ func _create_session() -> bool:
 	_session.choices_changed.connect(_on_choices_changed)
 	_session.choice_timer_changed.connect(_on_choice_timer_changed)
 	_session.choice_timed_out.connect(_on_choice_timed_out)
+	if _event_router != null:
+		_session.event_emitted.connect(_event_router.dispatch)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
 	return true
@@ -70,9 +76,28 @@ func _create_outline_runner() -> bool:
 	_session.choices_changed.connect(_on_choices_changed)
 	_session.choice_timer_changed.connect(_on_choice_timer_changed)
 	_session.choice_timed_out.connect(_on_choice_timed_out)
+	if _event_router != null:
+		_session.event_emitted.connect(_event_router.dispatch)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
 	return true
+
+func _create_event_router() -> void:
+	var router_script: Script = load(EVENT_ROUTER_SCRIPT)
+	if router_script == null:
+		_push_status("Failed to load event router script")
+		return
+
+	_event_router = router_script.new()
+	_event_router.register("123", Callable(self, "_on_event_123"))
+
+func _ensure_event_dialog() -> AcceptDialog:
+	if _event_dialog != null and is_instance_valid(_event_dialog):
+		return _event_dialog
+	_event_dialog = AcceptDialog.new()
+	_event_dialog.title = "NarrRail Event"
+	add_child(_event_dialog)
+	return _event_dialog
 
 func _load_path(path: String) -> void:
 	if _is_outline_path(path):
@@ -372,6 +397,11 @@ func _on_choice_timer_changed(payload: Dictionary) -> void:
 
 func _on_choice_timed_out(payload: Dictionary) -> void:
 	_push_status("Timed out: %s" % String(payload.get("timeoutChoiceTextKey", "Timeout")))
+
+func _on_event_123(payload: Dictionary) -> void:
+	var dialog := _ensure_event_dialog()
+	dialog.dialog_text = "Received event 123 from %s" % String(payload.get("nodeId", ""))
+	dialog.popup_centered()
 
 func _on_ended() -> void:
 	_clear_choices()

@@ -1,0 +1,13 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_emit_event_node
+  entryNodeId: N_Event
+
+variables: []
+
+nodes:
+  - nodeId: N_Event
+    nodeType: EmitEvent
+    eventId: ""
+
+edges: []

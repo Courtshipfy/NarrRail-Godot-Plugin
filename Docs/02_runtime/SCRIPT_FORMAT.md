@@ -193,6 +193,8 @@ terms:
 | `value` | string | Set/Add/Subtract 需要 | 输入值 |
 | `eventId` | string | EmitEvent 需要 | 事件标识符 |
 
+`SetVariable` 节点的 `actions` 字段使用同一动作结构，并按数组顺序执行。
+
 ## 9. 校验规则
 
 硬错误（必须修复）：
@@ -202,6 +204,9 @@ terms:
 - 无效的选项目标引用
 - 空变量名或重复变量名
 - 独立 `EmitEvent` 节点缺少 `eventId`
+- `EmitEvent` action 缺少 `eventId`
+- action 变量引用为空或使用不支持的 `actionType`
+- 运行时启动时，action 引用不存在的变量会报错；变量可能来自同故事文件或合并后的 GlobalConfig。
 
 警告（建议修复）：
 - 孤立节点（除入口节点外）

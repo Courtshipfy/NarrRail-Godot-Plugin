@@ -4,6 +4,7 @@ const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
 const OUTLINE_LOADER_SCRIPT := "res://addons/narrrail/importer/nroutline_loader.gd"
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const OUTLINE_RUNNER_SCRIPT := "res://addons/narrrail/runtime/narrrail_outline_runner.gd"
+const EVENT_ROUTER_SCRIPT := "res://addons/narrrail/runtime/narrrail_event_router.gd"
 
 var _failures: Array[String] = []
 
@@ -18,8 +19,11 @@ func _run() -> void:
 	_run_action_chain()
 	_run_jump_actions()
 	_run_emit_event_node()
+	_run_event_router()
 	_run_trace_logging()
 	_run_invalid_action_variable()
+	_run_invalid_emit_event_node()
+	_run_invalid_emit_event_action()
 	_run_multi_dialogue()
 	_run_invalid_multi_dialogue_empty()
 	_run_choice_exhaustive()
@@ -274,6 +278,33 @@ func _run_emit_event_node() -> void:
 	_expect_equal("emit_event_node errors", errors, [])
 	_expect_equal("emit_event_node events", _event_ids(session.get_state().get("events", [])), ["door_open"])
 
+func _run_event_router() -> void:
+	var router_script: Script = load(EVENT_ROUTER_SCRIPT)
+	if router_script == null:
+		_failures.append("Failed to load event router script")
+		return
+
+	var router: RefCounted = router_script.new()
+	var handled: Array = []
+	var unhandled: Array = []
+	router.event_handled.connect(func(event_id: String, _payload: Dictionary) -> void:
+		handled.append(event_id)
+	)
+	router.event_unhandled.connect(func(event_id: String, _payload: Dictionary) -> void:
+		unhandled.append(event_id)
+	)
+	router.register("123", func(payload: Dictionary) -> void:
+		handled.append("call:%s:%s" % [
+			String(payload.get("eventId", "")),
+			String(payload.get("nodeId", ""))
+		])
+	)
+
+	_expect_equal("event_router handles registered event", router.dispatch({"eventId": "123", "nodeId": "N_Event"}), true)
+	_expect_equal("event_router ignores unregistered event", router.dispatch({"eventId": "missing", "nodeId": "N_Event"}), false)
+	_expect_equal("event_router handled trace", handled, ["call:123:N_Event", "123"])
+	_expect_equal("event_router unhandled trace", unhandled, ["missing"])
+
 func _run_trace_logging() -> void:
 	var trace: Array = []
 	var errors: Array = []
@@ -316,6 +347,26 @@ func _run_invalid_action_variable() -> void:
 	_expect_equal("invalid_action_variable trace", trace, [])
 	if errors.size() != 1 or not String(errors[0]).contains("Add action variable not found on node N_Start: Missing"):
 		_failures.append("invalid_action_variable expected action-variable error, got %s" % str(errors))
+
+func _run_invalid_emit_event_node() -> void:
+	var result := _load_story_result("res://tests/conformance/invalid_emit_event_node.nrstory")
+	_expect_equal("invalid_emit_event_node ok", result.get("ok", true), false)
+	_expect_diag_codes("invalid_emit_event_node diagnostics", result.get("diagnostics", []), [
+		"EMIT_EVENT_ID_EMPTY"
+	])
+	_expect_diag_suggestions("invalid_emit_event_node suggestions", result.get("diagnostics", []), [
+		"EMIT_EVENT_ID_EMPTY"
+	])
+
+func _run_invalid_emit_event_action() -> void:
+	var result := _load_story_result("res://tests/conformance/invalid_emit_event_action.nrstory")
+	_expect_equal("invalid_emit_event_action ok", result.get("ok", true), false)
+	_expect_diag_codes("invalid_emit_event_action diagnostics", result.get("diagnostics", []), [
+		"ACTION_EVENT_ID_EMPTY"
+	])
+	_expect_diag_suggestions("invalid_emit_event_action suggestions", result.get("diagnostics", []), [
+		"ACTION_EVENT_ID_EMPTY"
+	])
 
 func _run_multi_dialogue() -> void:
 	var trace: Array = []
