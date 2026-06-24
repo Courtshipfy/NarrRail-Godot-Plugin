@@ -3,8 +3,10 @@ extends RefCounted
 
 signal event_handled(event_id: String, payload: Dictionary)
 signal event_unhandled(event_id: String, payload: Dictionary)
+signal event_type_handled(event_type: String, payload: Dictionary)
 
 var _handlers: Dictionary = {}
+var _type_handlers: Dictionary = {}
 
 func register(event_id: String, handler: Callable) -> void:
 	var normalized_id := event_id.strip_edges()
@@ -19,23 +21,45 @@ func register(event_id: String, handler: Callable) -> void:
 func unregister(event_id: String) -> void:
 	_handlers.erase(event_id.strip_edges())
 
+func register_type(event_type: String, handler: Callable) -> void:
+	var normalized_type := event_type.strip_edges()
+	if normalized_type.is_empty():
+		push_error("[NarrRail] Cannot register an empty event type.")
+		return
+	if not handler.is_valid():
+		push_error("[NarrRail] Cannot register invalid handler for event type: %s" % normalized_type)
+		return
+	_type_handlers[normalized_type] = handler
+
+func unregister_type(event_type: String) -> void:
+	_type_handlers.erase(event_type.strip_edges())
+
 func clear() -> void:
 	_handlers.clear()
+	_type_handlers.clear()
 
 func has_handler(event_id: String) -> bool:
 	return _handlers.has(event_id.strip_edges())
 
+func has_type_handler(event_type: String) -> bool:
+	return _type_handlers.has(event_type.strip_edges())
+
 func dispatch(payload: Dictionary) -> bool:
 	var event_id := String(payload.get("eventId", "")).strip_edges()
-	if event_id.is_empty() or not _handlers.has(event_id):
-		event_unhandled.emit(event_id, payload)
-		return false
+	if not event_id.is_empty() and _handlers.has(event_id):
+		var handler: Callable = _handlers[event_id]
+		if handler.is_valid():
+			handler.call(payload)
+			event_handled.emit(event_id, payload)
+			return true
 
-	var handler: Callable = _handlers[event_id]
-	if not handler.is_valid():
-		event_unhandled.emit(event_id, payload)
-		return false
+	var event_type := String(payload.get("eventType", "")).strip_edges()
+	if not event_type.is_empty() and _type_handlers.has(event_type):
+		var type_handler: Callable = _type_handlers[event_type]
+		if type_handler.is_valid():
+			type_handler.call(payload)
+			event_type_handled.emit(event_type, payload)
+			return true
 
-	handler.call(payload)
-	event_handled.emit(event_id, payload)
-	return true
+	event_unhandled.emit(event_id, payload)
+	return false

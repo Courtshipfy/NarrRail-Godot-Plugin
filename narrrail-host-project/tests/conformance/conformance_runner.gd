@@ -2,6 +2,7 @@ extends SceneTree
 
 const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
 const OUTLINE_LOADER_SCRIPT := "res://addons/narrrail/importer/nroutline_loader.gd"
+const STORY_MODEL_SCRIPT := "res://addons/narrrail/runtime/story_model.gd"
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const OUTLINE_RUNNER_SCRIPT := "res://addons/narrrail/runtime/narrrail_outline_runner.gd"
 const EVENT_ROUTER_SCRIPT := "res://addons/narrrail/runtime/narrrail_event_router.gd"
@@ -19,11 +20,14 @@ func _run() -> void:
 	_run_action_chain()
 	_run_jump_actions()
 	_run_emit_event_node()
+	_run_emit_event_structured()
 	_run_event_router()
 	_run_trace_logging()
 	_run_invalid_action_variable()
 	_run_invalid_emit_event_node()
 	_run_invalid_emit_event_action()
+	_run_invalid_emit_event_params()
+	_run_minimal_emit_event_validation()
 	_run_multi_dialogue()
 	_run_invalid_multi_dialogue_empty()
 	_run_choice_exhaustive()
@@ -278,6 +282,39 @@ func _run_emit_event_node() -> void:
 	_expect_equal("emit_event_node errors", errors, [])
 	_expect_equal("emit_event_node events", _event_ids(session.get_state().get("events", [])), ["door_open"])
 
+func _run_emit_event_structured() -> void:
+	var trace: Array = []
+	var errors: Array = []
+	var story := _load_story("res://tests/conformance/emit_event_structured.nrstory")
+	var session := _new_session(trace, errors)
+	if session == null:
+		return
+
+	session.start(story)
+	session.next()
+
+	_expect_equal("emit_event_structured trace", trace, [
+		"EVENT:N_Start:enter:",
+		"LINE:N_Start:0:start",
+		"EVENT:N_Start:exit:legacy_and_type",
+		"EVENT:N_TypeNode:node:",
+		"EVENT:N_DefaultParams:node:",
+		"END"
+	])
+	_expect_equal("emit_event_structured errors", errors, [])
+
+	var events: Array = session.get_state().get("events", [])
+	_expect_equal("emit_event_structured event count", events.size(), 4)
+	if events.size() != 4:
+		return
+	_expect_equal("emit_event_structured action type", String((events[0] as Dictionary).get("eventType", "")), "inventory.add_item")
+	_expect_equal("emit_event_structured action params", (events[0] as Dictionary).get("params", {}), {"itemId": "key", "count": 1})
+	_expect_equal("emit_event_structured combined id", String((events[1] as Dictionary).get("eventId", "")), "legacy_and_type")
+	_expect_equal("emit_event_structured combined type", String((events[1] as Dictionary).get("eventType", "")), "ui.flash")
+	_expect_equal("emit_event_structured node type", String((events[2] as Dictionary).get("eventType", "")), "audio.play")
+	_expect_equal("emit_event_structured node params", (events[2] as Dictionary).get("params", {}), {"cue": "door"})
+	_expect_equal("emit_event_structured default params", (events[3] as Dictionary).get("params", {}), {})
+
 func _run_event_router() -> void:
 	var router_script: Script = load(EVENT_ROUTER_SCRIPT)
 	if router_script == null:
@@ -287,11 +324,15 @@ func _run_event_router() -> void:
 	var router: RefCounted = router_script.new()
 	var handled: Array = []
 	var unhandled: Array = []
+	var type_handled: Array = []
 	router.event_handled.connect(func(event_id: String, _payload: Dictionary) -> void:
 		handled.append(event_id)
 	)
 	router.event_unhandled.connect(func(event_id: String, _payload: Dictionary) -> void:
 		unhandled.append(event_id)
+	)
+	router.event_type_handled.connect(func(event_type: String, _payload: Dictionary) -> void:
+		type_handled.append(event_type)
 	)
 	router.register("123", func(payload: Dictionary) -> void:
 		handled.append("call:%s:%s" % [
@@ -299,11 +340,23 @@ func _run_event_router() -> void:
 			String(payload.get("nodeId", ""))
 		])
 	)
+	router.register_type("inventory.add_item", func(payload: Dictionary) -> void:
+		type_handled.append("call:%s:%s" % [
+			String(payload.get("eventType", "")),
+			String(payload.get("nodeId", ""))
+		])
+	)
 
 	_expect_equal("event_router handles registered event", router.dispatch({"eventId": "123", "nodeId": "N_Event"}), true)
-	_expect_equal("event_router ignores unregistered event", router.dispatch({"eventId": "missing", "nodeId": "N_Event"}), false)
-	_expect_equal("event_router handled trace", handled, ["call:123:N_Event", "123"])
+	_expect_equal("event_router handles registered type", router.dispatch({"eventType": "inventory.add_item", "nodeId": "N_Type"}), true)
+	_expect_equal("event_router id wins over type", router.dispatch({"eventId": "123", "eventType": "inventory.add_item", "nodeId": "N_Both"}), true)
+	_expect_equal("event_router ignores unregistered event", router.dispatch({"eventId": "missing", "eventType": "missing.type", "nodeId": "N_Event"}), false)
+	_expect_equal("event_router has type handler", router.has_type_handler("inventory.add_item"), true)
+	_expect_equal("event_router handled trace", handled, ["call:123:N_Event", "123", "call:123:N_Both", "123"])
+	_expect_equal("event_router type handled trace", type_handled, ["call:inventory.add_item:N_Type", "inventory.add_item"])
 	_expect_equal("event_router unhandled trace", unhandled, ["missing"])
+	router.unregister_type("inventory.add_item")
+	_expect_equal("event_router unregisters type handler", router.has_type_handler("inventory.add_item"), false)
 
 func _run_trace_logging() -> void:
 	var trace: Array = []
@@ -352,21 +405,82 @@ func _run_invalid_emit_event_node() -> void:
 	var result := _load_story_result("res://tests/conformance/invalid_emit_event_node.nrstory")
 	_expect_equal("invalid_emit_event_node ok", result.get("ok", true), false)
 	_expect_diag_codes("invalid_emit_event_node diagnostics", result.get("diagnostics", []), [
-		"EMIT_EVENT_ID_EMPTY"
+		"EMIT_EVENT_ID_OR_TYPE_EMPTY"
 	])
 	_expect_diag_suggestions("invalid_emit_event_node suggestions", result.get("diagnostics", []), [
-		"EMIT_EVENT_ID_EMPTY"
+		"EMIT_EVENT_ID_OR_TYPE_EMPTY"
 	])
 
 func _run_invalid_emit_event_action() -> void:
 	var result := _load_story_result("res://tests/conformance/invalid_emit_event_action.nrstory")
 	_expect_equal("invalid_emit_event_action ok", result.get("ok", true), false)
 	_expect_diag_codes("invalid_emit_event_action diagnostics", result.get("diagnostics", []), [
-		"ACTION_EVENT_ID_EMPTY"
+		"ACTION_EVENT_ID_OR_TYPE_EMPTY"
 	])
 	_expect_diag_suggestions("invalid_emit_event_action suggestions", result.get("diagnostics", []), [
-		"ACTION_EVENT_ID_EMPTY"
+		"ACTION_EVENT_ID_OR_TYPE_EMPTY"
 	])
+
+func _run_invalid_emit_event_params() -> void:
+	var node_result := _load_story_result("res://tests/conformance/invalid_emit_event_params_node.nrstory")
+	_expect_equal("invalid_emit_event_params_node ok", node_result.get("ok", true), false)
+	_expect_diag_codes("invalid_emit_event_params_node diagnostics", node_result.get("diagnostics", []), [
+		"EMIT_EVENT_PARAMS_TYPE_INVALID"
+	])
+
+	var action_result := _load_story_result("res://tests/conformance/invalid_emit_event_params_action.nrstory")
+	_expect_equal("invalid_emit_event_params_action ok", action_result.get("ok", true), false)
+	_expect_diag_codes("invalid_emit_event_params_action diagnostics", action_result.get("diagnostics", []), [
+		"ACTION_EVENT_PARAMS_TYPE_INVALID"
+	])
+
+func _run_minimal_emit_event_validation() -> void:
+	var model_script: Script = load(STORY_MODEL_SCRIPT)
+	if model_script == null:
+		_failures.append("Failed to load story model script")
+		return
+
+	var valid_type_only := _minimal_story([{
+		"nodeId": "N_Event",
+		"nodeType": "EmitEvent",
+		"eventType": "inventory.add_item",
+		"params": {"itemId": "key"}
+	}])
+	_expect_equal("minimal_emit_event type-only ok", model_script.call("validate_minimal", valid_type_only).get("ok", false), true)
+
+	var invalid_empty := _minimal_story([{
+		"nodeId": "N_Event",
+		"nodeType": "EmitEvent",
+		"eventId": "",
+		"eventType": ""
+	}])
+	var invalid_empty_check: Dictionary = model_script.call("validate_minimal", invalid_empty)
+	_expect_equal("minimal_emit_event empty ok", invalid_empty_check.get("ok", true), false)
+	_expect_error_contains("minimal_emit_event empty error", invalid_empty_check.get("errors", []), "missing eventId or eventType")
+
+	var invalid_node_params := _minimal_story([{
+		"nodeId": "N_Event",
+		"nodeType": "EmitEvent",
+		"eventType": "inventory.add_item",
+		"params": "invalid"
+	}])
+	var invalid_node_params_check: Dictionary = model_script.call("validate_minimal", invalid_node_params)
+	_expect_equal("minimal_emit_event bad node params ok", invalid_node_params_check.get("ok", true), false)
+	_expect_error_contains("minimal_emit_event bad node params error", invalid_node_params_check.get("errors", []), "params must be an object")
+
+	var invalid_action_params := _minimal_story([{
+		"nodeId": "N_Start",
+		"nodeType": "Dialogue",
+		"dialogue": {"speakerId": "Hero", "textKey": "start"},
+		"enterActions": [{
+			"actionType": "EmitEvent",
+			"eventType": "inventory.add_item",
+			"params": "invalid"
+		}]
+	}])
+	var invalid_action_params_check: Dictionary = model_script.call("validate_minimal", invalid_action_params)
+	_expect_equal("minimal_emit_event bad action params ok", invalid_action_params_check.get("ok", true), false)
+	_expect_error_contains("minimal_emit_event bad action params error", invalid_action_params_check.get("errors", []), "params must be an object")
 
 func _run_multi_dialogue() -> void:
 	var trace: Array = []
@@ -870,6 +984,24 @@ func _event_ids(events: Array) -> Array:
 	for event in events:
 		out.append(String(event.get("eventId", "")))
 	return out
+
+func _minimal_story(nodes: Array) -> Dictionary:
+	return {
+		"meta": {
+			"schemaVersion": 1,
+			"storyId": "minimal_emit_event_validation",
+			"entryNodeId": "N_Event" if String((nodes[0] as Dictionary).get("nodeId", "")) == "N_Event" else "N_Start"
+		},
+		"variables": [],
+		"nodes": nodes,
+		"edges": []
+	}
+
+func _expect_error_contains(label: String, errors: Array, needle: String) -> void:
+	for error in errors:
+		if String(error).contains(needle):
+			return
+	_failures.append("%s missing '%s' actual=%s" % [label, needle, str(errors)])
 
 func _expect_diag_codes(label: String, diagnostics: Array, expected_codes: Array) -> void:
 	var actual_codes: Dictionary = {}

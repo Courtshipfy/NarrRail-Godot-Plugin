@@ -965,35 +965,43 @@ func _execute_variable_action(action: Dictionary, phase: String, node_id: String
 	return {"ok": true, "error": ""}
 
 func _execute_emit_event_action(action: Dictionary, phase: String, node_id: String) -> Dictionary:
-	var event_id := String(action.get("eventId", "")).strip_edges()
-	if event_id.is_empty():
-		return {"ok": false, "error": "EmitEvent action has empty eventId on node %s" % node_id}
-
-	var payload := {
-		"nodeId": node_id,
-		"phase": phase,
-		"eventId": event_id
-	}
-	_emitted_events.append(payload)
-	_trace("event", TRACE_LEVEL_INFO, payload)
-	event_emitted.emit(payload)
-	return {"ok": true, "error": ""}
+	return _emit_structured_event(action, phase, node_id, "action")
 
 func _execute_emit_event_node(node: Dictionary) -> Dictionary:
 	var node_id := String(node.get("nodeId", ""))
-	var event_id := String(node.get("eventId", "")).strip_edges()
-	if event_id.is_empty():
-		return {"ok": false, "error": "EmitEvent node has empty eventId: %s" % node_id}
+	return _emit_structured_event(node, "node", node_id, "node")
 
-	var payload := {
-		"nodeId": node_id,
-		"phase": "node",
-		"eventId": event_id
-	}
+func _emit_structured_event(data: Dictionary, phase: String, node_id: String, source: String) -> Dictionary:
+	var payload_check := _build_event_payload(data, phase, node_id, source)
+	if not payload_check.get("ok", false):
+		return payload_check
+	var payload: Dictionary = payload_check.get("payload", {})
 	_emitted_events.append(payload)
 	_trace("event", TRACE_LEVEL_INFO, payload)
 	event_emitted.emit(payload)
 	return {"ok": true, "error": ""}
+
+func _build_event_payload(data: Dictionary, phase: String, node_id: String, source: String) -> Dictionary:
+	var event_id := String(data.get("eventId", "")).strip_edges()
+	var event_type := String(data.get("eventType", "")).strip_edges()
+	if event_id.is_empty() and event_type.is_empty():
+		return {"ok": false, "error": "EmitEvent %s has empty eventId and eventType on node %s" % [source, node_id]}
+	if data.has("params") and typeof(data.get("params")) != TYPE_DICTIONARY:
+		return {"ok": false, "error": "EmitEvent %s params must be an object on node %s" % [source, node_id]}
+	var params: Dictionary = {}
+	if data.has("params"):
+		params = (data.get("params") as Dictionary).duplicate(true)
+	return {
+		"ok": true,
+		"error": "",
+		"payload": {
+			"nodeId": node_id,
+			"phase": phase,
+			"eventId": event_id,
+			"eventType": event_type,
+			"params": params
+		}
+	}
 
 func _resolve_condition_node_target(node: Dictionary) -> Dictionary:
 	var node_id := String(node.get("nodeId", ""))

@@ -147,12 +147,33 @@ Emitted when `Set/Add/Subtract` mutates variable state.
 
 Emitted when an `EmitEvent` action or standalone `EmitEvent` node is executed.
 
-Use `NarrRailEventRouter` when you want event IDs to trigger engine behavior directly:
+Payload fields:
+- `nodeId: String`
+- `phase: String` - `enter`, `exit`, or `node`
+- `eventId: String` - legacy event id, or `""`
+- `eventType: String` - structured event type, or `""`
+- `params: Dictionary` - structured event params, or `{}`
+
+The runtime forwards event data only. Gameplay-specific meanings such as inventory, audio, or scene changes belong in game code.
+
+Use `NarrRailEventRouter` when you want story events to trigger engine behavior directly. Legacy `eventId` handlers are checked first; when no `eventId` handler matches, `eventType` handlers are checked:
 
 ```gdscript
 var router := NarrRailEventRouter.new()
 router.register("123", Callable(self, "_on_event_123"))
+router.register_type("inventory.add_item", Callable(self, "_on_inventory_add_item"))
 session.event_emitted.connect(router.dispatch)
+```
+
+You can also consume structured events directly:
+
+```gdscript
+session.event_emitted.connect(func(payload: Dictionary):
+	match String(payload.get("eventType", "")):
+		"inventory.add_item":
+			var params := payload.get("params", {})
+			# game-specific handling
+)
 ```
 
 ### `trace_logged(payload: Dictionary)`

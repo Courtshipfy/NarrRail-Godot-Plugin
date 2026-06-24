@@ -125,12 +125,16 @@ lines:
 ```yaml
 - nodeId: N_PlayBgm
   nodeType: EmitEvent
-  eventId: bgm_start
+  eventType: audio.play
+  params:
+    cue: bgm_start
 ```
 
 说明：
 - 运行到该节点时，runtime 发出 `event_emitted`。
 - 事件 payload 的 `phase` 为 `node`。
+- `eventId` 和 `eventType` 至少填写一个；`eventId` 用于旧路由兼容，`eventType` + `params` 用于结构化事件。
+- `params` 可省略，省略时 runtime payload 中为 `{}`。
 - 发出事件后，runtime 自动沿该节点出边继续。
 
 ## 6. 边（Edges）
@@ -191,7 +195,11 @@ terms:
 | `actionType` | 枚举 | 是 | `Set` / `Add` / `Subtract` / `EmitEvent` |
 | `variable` | 对象 | Set/Add/Subtract 需要 | 变量引用 |
 | `value` | string | Set/Add/Subtract 需要 | 输入值 |
-| `eventId` | string | EmitEvent 需要 | 事件标识符 |
+| `eventId` | string | EmitEvent 可选 | 旧事件标识符 |
+| `eventType` | string | EmitEvent 可选 | 结构化事件类型 |
+| `params` | object | 否 | 结构化事件参数，默认 `{}` |
+
+`EmitEvent` action 的 `eventId` 和 `eventType` 至少填写一个。
 
 `SetVariable` 节点的 `actions` 字段使用同一动作结构，并按数组顺序执行。
 
@@ -203,8 +211,9 @@ terms:
 - 无效的边引用
 - 无效的选项目标引用
 - 空变量名或重复变量名
-- 独立 `EmitEvent` 节点缺少 `eventId`
-- `EmitEvent` action 缺少 `eventId`
+- 独立 `EmitEvent` 节点同时缺少 `eventId` 和 `eventType`
+- `EmitEvent` action 同时缺少 `eventId` 和 `eventType`
+- `EmitEvent` 的 `params` 不是对象
 - action 变量引用为空或使用不支持的 `actionType`
 - 运行时启动时，action 引用不存在的变量会报错；变量可能来自同故事文件或合并后的 GlobalConfig。
 

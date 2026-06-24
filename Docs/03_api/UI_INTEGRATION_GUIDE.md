@@ -53,6 +53,7 @@ var event_router := NarrRailEventRouter.new()
 
 func _ready() -> void:
 	event_router.register("123", Callable(self, "_on_event_123"))
+	event_router.register_type("inventory.add_item", Callable(self, "_on_inventory_add_item"))
 	session.event_emitted.connect(event_router.dispatch)
 
 func _on_event_123(payload: Dictionary) -> void:
@@ -62,12 +63,15 @@ func _on_event_123(payload: Dictionary) -> void:
 	dialog.popup_centered()
 ```
 
-Story-side event nodes should use the canonical top-level `eventId` field:
+Story-side event nodes can use legacy `eventId`, structured `eventType` + `params`, or both:
 
 ```yaml
 - nodeId: N_Event
   nodeType: EmitEvent
-  eventId: "123"
+  eventType: inventory.add_item
+  params:
+    itemId: key
+    count: 1
 ```
 
 ## QA Checklist
