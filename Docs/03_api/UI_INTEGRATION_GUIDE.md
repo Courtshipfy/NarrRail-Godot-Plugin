@@ -52,18 +52,26 @@ Use `NarrRailEventRouter` when story events should execute Godot behavior direct
 var event_router := NarrRailEventRouter.new()
 
 func _ready() -> void:
-	event_router.register("123", Callable(self, "_on_event_123"))
 	event_router.register_type("inventory.add_item", Callable(self, "_on_inventory_add_item"))
 	session.event_emitted.connect(event_router.dispatch)
-
-func _on_event_123(payload: Dictionary) -> void:
-	var dialog := AcceptDialog.new()
-	dialog.dialog_text = "Received event 123"
-	add_child(dialog)
-	dialog.popup_centered()
 ```
 
-Story-side event nodes can use legacy `eventId`, structured `eventType` + `params`, or both:
+For events that should delay node progression, keep the event meaning in project code and use the runtime's generic pause/resume API:
+
+```gdscript
+func _ready() -> void:
+	event_router.register_type("delay", Callable(self, "_on_delay_event"))
+	session.event_emitted.connect(event_router.dispatch)
+
+func _on_delay_event(payload: Dictionary) -> void:
+	var params: Dictionary = payload.get("params", {})
+	var seconds := float(params.get("time", 0.0))
+	session.pause()
+	await get_tree().create_timer(maxf(seconds, 0.0)).timeout
+	session.resume()
+```
+
+Story-side event nodes use structured `eventType` + optional `params`:
 
 ```yaml
 - nodeId: N_Event
@@ -72,6 +80,16 @@ Story-side event nodes can use legacy `eventId`, structured `eventType` + `param
   params:
     itemId: key
     count: 1
+```
+
+Delay event example used by the sample project:
+
+```yaml
+- nodeId: N_Delay
+  nodeType: EmitEvent
+  eventType: delay
+  params:
+    time: 1.0
 ```
 
 ## QA Checklist

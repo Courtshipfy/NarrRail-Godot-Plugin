@@ -1,6 +1,6 @@
 meta:
   schemaVersion: 1
-  storyId: invalid_emit_event_action
+  storyId: invalid_emit_event_legacy_action
   entryNodeId: N_Start
 
 variables: []
@@ -13,6 +13,7 @@ nodes:
       textKey: start
     enterActions:
       - actionType: EmitEvent
-        eventType: ""
+        eventId: legacy_event
+        eventType: delay
 
 edges: []

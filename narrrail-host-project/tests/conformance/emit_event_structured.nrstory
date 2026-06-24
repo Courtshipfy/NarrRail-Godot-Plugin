@@ -19,7 +19,6 @@ nodes:
           count: 1
     exitActions:
       - actionType: EmitEvent
-        eventId: legacy_and_type
         eventType: ui.flash
         params:
           color: green

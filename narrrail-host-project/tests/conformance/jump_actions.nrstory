@@ -27,16 +27,16 @@ nodes:
           scope: Session
         value: "true"
       - actionType: EmitEvent
-        eventId: jump_enter
+        eventType: jump_enter
     exitActions:
       - actionType: EmitEvent
-        eventId: jump_exit
+        eventType: jump_exit
 
   - nodeId: N_End
     nodeType: End
     enterActions:
       - actionType: EmitEvent
-        eventId: jump_end
+        eventType: jump_end
 
 edges:
   - sourceNodeId: N_Start

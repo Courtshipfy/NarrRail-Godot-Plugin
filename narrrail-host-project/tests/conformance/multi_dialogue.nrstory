@@ -16,16 +16,16 @@ nodes:
         - textKey: line_3
     enterActions:
       - actionType: EmitEvent
-        eventId: multi_enter
+        eventType: multi_enter
     exitActions:
       - actionType: EmitEvent
-        eventId: multi_exit
+        eventType: multi_exit
 
   - nodeId: N_End
     nodeType: End
     enterActions:
       - actionType: EmitEvent
-        eventId: multi_end
+        eventType: multi_end
 
 edges:
   - sourceNodeId: N_Start

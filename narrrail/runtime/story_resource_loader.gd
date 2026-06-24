@@ -7,16 +7,17 @@ static func load_story(path: String) -> Dictionary:
 	if path.strip_edges().is_empty():
 		return {"ok": false, "story": {}, "error": "Story path is empty", "diagnostics": []}
 
-	var imported := ResourceLoader.load(path)
-	if imported != null and _has_property(imported, "story_data"):
-		var data = imported.get("story_data")
-		if typeof(data) == TYPE_DICTIONARY and not (data as Dictionary).is_empty():
-			return {
-				"ok": true,
-				"story": _with_global_config_variables(data, path),
-				"error": "",
-				"diagnostics": []
-			}
+	if not path.ends_with(".nrstory"):
+		var imported := ResourceLoader.load(path)
+		if imported != null and _has_property(imported, "story_data"):
+			var data = imported.get("story_data")
+			if typeof(data) == TYPE_DICTIONARY and not (data as Dictionary).is_empty():
+				return {
+					"ok": true,
+					"story": _with_global_config_variables(data, path),
+					"error": "",
+					"diagnostics": []
+				}
 
 	var loader_script: Script = load(NRSTORY_LOADER_SCRIPT)
 	if loader_script == null:

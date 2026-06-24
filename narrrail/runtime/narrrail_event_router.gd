@@ -1,25 +1,10 @@
 class_name NarrRailEventRouter
 extends RefCounted
 
-signal event_handled(event_id: String, payload: Dictionary)
-signal event_unhandled(event_id: String, payload: Dictionary)
 signal event_type_handled(event_type: String, payload: Dictionary)
+signal event_unhandled(event_type: String, payload: Dictionary)
 
-var _handlers: Dictionary = {}
 var _type_handlers: Dictionary = {}
-
-func register(event_id: String, handler: Callable) -> void:
-	var normalized_id := event_id.strip_edges()
-	if normalized_id.is_empty():
-		push_error("[NarrRail] Cannot register an empty event id.")
-		return
-	if not handler.is_valid():
-		push_error("[NarrRail] Cannot register invalid handler for event id: %s" % normalized_id)
-		return
-	_handlers[normalized_id] = handler
-
-func unregister(event_id: String) -> void:
-	_handlers.erase(event_id.strip_edges())
 
 func register_type(event_type: String, handler: Callable) -> void:
 	var normalized_type := event_type.strip_edges()
@@ -35,24 +20,12 @@ func unregister_type(event_type: String) -> void:
 	_type_handlers.erase(event_type.strip_edges())
 
 func clear() -> void:
-	_handlers.clear()
 	_type_handlers.clear()
-
-func has_handler(event_id: String) -> bool:
-	return _handlers.has(event_id.strip_edges())
 
 func has_type_handler(event_type: String) -> bool:
 	return _type_handlers.has(event_type.strip_edges())
 
 func dispatch(payload: Dictionary) -> bool:
-	var event_id := String(payload.get("eventId", "")).strip_edges()
-	if not event_id.is_empty() and _handlers.has(event_id):
-		var handler: Callable = _handlers[event_id]
-		if handler.is_valid():
-			handler.call(payload)
-			event_handled.emit(event_id, payload)
-			return true
-
 	var event_type := String(payload.get("eventType", "")).strip_edges()
 	if not event_type.is_empty() and _type_handlers.has(event_type):
 		var type_handler: Callable = _type_handlers[event_type]
@@ -61,5 +34,5 @@ func dispatch(payload: Dictionary) -> bool:
 			event_type_handled.emit(event_type, payload)
 			return true
 
-	event_unhandled.emit(event_id, payload)
+	event_unhandled.emit(event_type, payload)
 	return false

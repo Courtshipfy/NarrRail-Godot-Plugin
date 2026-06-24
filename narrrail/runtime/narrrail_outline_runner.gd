@@ -64,6 +64,17 @@ func advance_time(delta_seconds: float) -> void:
 	if _active_session != null:
 		_active_session.call("advance_time", delta_seconds)
 
+func pause() -> void:
+	if _active_session == null:
+		_raise_error("Cannot pause(): no active story session")
+		return
+	_active_session.call("pause")
+
+func resume() -> void:
+	if _active_session == null:
+		return
+	_active_session.call("resume")
+
 func get_state() -> Dictionary:
 	var story_state := {}
 	if _active_session != null:

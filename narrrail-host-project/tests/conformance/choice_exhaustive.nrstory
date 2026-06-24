@@ -17,7 +17,7 @@ nodes:
         targetNodeId: N_B
     exitActions:
       - actionType: EmitEvent
-        eventId: choice_exit
+        eventType: choice_exit
 
   - nodeId: N_A
     nodeType: Dialogue
