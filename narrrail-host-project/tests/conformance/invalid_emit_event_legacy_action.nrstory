@@ -1,0 +1,19 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_emit_event_legacy_action
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+    enterActions:
+      - actionType: EmitEvent
+        eventId: legacy_event
+        eventType: delay
+
+edges: []

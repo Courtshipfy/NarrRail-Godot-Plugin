@@ -14,6 +14,7 @@ signal choice_timed_out(payload: Dictionary)
 const STATE_IDLE := "idle"
 const STATE_RUNNING := "running"
 const STATE_WAITING_CHOICE := "waiting_choice"
+const STATE_PAUSED := "paused"
 const STATE_ENDED := "ended"
 const STORY_MODEL_SCRIPT := "res://addons/narrrail/runtime/story_model.gd"
 const SAVE_SCHEMA_VERSION := 1
@@ -31,6 +32,7 @@ var _exhausted_choice_targets: Dictionary = {}
 var _exhaustive_choice_stack: Array[String] = []
 var _state: String = STATE_IDLE
 var _current_node_id: String = ""
+var _paused_event_node_id: String = ""
 var _current_choices: Array = []
 var _current_line_index: int = -1
 var _choice_timer: Dictionary = {
@@ -79,6 +81,7 @@ func start(story_data: Dictionary, initial_variables: Dictionary = {}) -> void:
 		return
 
 	_state = STATE_RUNNING
+	_paused_event_node_id = ""
 	_current_choices.clear()
 	_current_line_index = -1
 	_reset_choice_timer(false)
@@ -89,6 +92,9 @@ func start(story_data: Dictionary, initial_variables: Dictionary = {}) -> void:
 
 func next() -> void:
 	if _state == STATE_ENDED:
+		return
+	if _state == STATE_PAUSED:
+		_emit_error("Cannot next(): session is paused")
 		return
 	if _state == STATE_WAITING_CHOICE:
 		_emit_error("Cannot next(): waiting for choose(index)")
@@ -115,6 +121,9 @@ func next() -> void:
 			_emit_error("next() not supported for nodeType: %s" % node_type)
 
 func choose(index: int) -> void:
+	if _state == STATE_PAUSED:
+		_emit_error("Cannot choose(): session is paused")
+		return
 	if _state != STATE_WAITING_CHOICE:
 		_emit_error("Cannot choose(): not in waiting_choice state")
 		return
@@ -147,10 +156,36 @@ func advance_time(delta_seconds: float) -> void:
 
 	_timeout_current_choice()
 
+func pause() -> void:
+	if _state == STATE_PAUSED:
+		return
+	if _state != STATE_RUNNING:
+		_emit_error("Cannot pause() in state: %s" % _state)
+		return
+
+	_state = STATE_PAUSED
+	_paused_event_node_id = ""
+	var node: Dictionary = _node_by_id.get(_current_node_id, {})
+	if String(node.get("nodeType", "")) == "EmitEvent":
+		_paused_event_node_id = _current_node_id
+	_trace("paused", TRACE_LEVEL_INFO, {"nodeId": _current_node_id})
+
+func resume() -> void:
+	if _state != STATE_PAUSED:
+		return
+
+	var resume_node_id := _paused_event_node_id
+	_paused_event_node_id = ""
+	_state = STATE_RUNNING
+	_trace("resumed", TRACE_LEVEL_INFO, {"nodeId": _current_node_id})
+	if not resume_node_id.is_empty():
+		_move_to_next_by_edges(resume_node_id)
+
 func get_state() -> Dictionary:
 	return {
 		"state": _state,
 		"currentNodeId": _current_node_id,
+		"pausedEventNodeId": _paused_event_node_id,
 		"currentLineIndex": _current_line_index,
 		"choices": _current_choices.duplicate(true),
 		"choiceTimer": _choice_timer.duplicate(true),
@@ -300,6 +335,8 @@ func _enter_node(node_id: String) -> void:
 			if not event_check.get("ok", false):
 				_emit_error(String(event_check.get("error", "Unknown EmitEvent node error")))
 				return
+			if _state == STATE_PAUSED and _paused_event_node_id == node_id:
+				return
 			_move_to_next_by_edges(node_id)
 		"Condition":
 			var condition_check := _resolve_condition_node_target(node)
@@ -340,7 +377,7 @@ func _validate_save_snapshot(story_data: Dictionary, snapshot: Dictionary) -> Di
 
 func _apply_save_session_data(session_data: Dictionary) -> Dictionary:
 	var restored_state := String(session_data.get("state", ""))
-	if not [STATE_RUNNING, STATE_WAITING_CHOICE, STATE_ENDED].has(restored_state):
+	if not [STATE_RUNNING, STATE_WAITING_CHOICE, STATE_PAUSED, STATE_ENDED].has(restored_state):
 		return {"ok": false, "error": "Unsupported saved session state: %s" % restored_state}
 
 	var restored_node_id := String(session_data.get("currentNodeId", ""))
@@ -375,6 +412,7 @@ func _apply_save_session_data(session_data: Dictionary) -> Dictionary:
 
 	_state = restored_state
 	_current_node_id = restored_node_id
+	_paused_event_node_id = String(session_data.get("pausedEventNodeId", ""))
 	_current_line_index = int(session_data.get("currentLineIndex", -1))
 	_emitted_events = (restored_events as Array).duplicate(true)
 	_exhausted_choice_targets = (restored_exhausted as Dictionary).duplicate(true)
@@ -383,6 +421,15 @@ func _apply_save_session_data(session_data: Dictionary) -> Dictionary:
 		_exhaustive_choice_stack.append(String(item))
 	_current_choices.clear()
 	_reset_choice_timer(false)
+
+	if _state == STATE_PAUSED:
+		var paused_node: Dictionary = _node_by_id.get(_current_node_id, {})
+		if String(paused_node.get("nodeType", "")) != "EmitEvent":
+			return {"ok": false, "error": "Saved paused state is not on an EmitEvent node: %s" % _current_node_id}
+		if _paused_event_node_id.is_empty():
+			_paused_event_node_id = _current_node_id
+		elif _paused_event_node_id != _current_node_id:
+			return {"ok": false, "error": "Saved pausedEventNodeId mismatch: %s" % _paused_event_node_id}
 
 	if _state == STATE_WAITING_CHOICE:
 		var node: Dictionary = _node_by_id.get(_current_node_id, {})
@@ -404,6 +451,8 @@ func _emit_restored_presentation() -> void:
 			_emit_choice_timer_changed()
 			choices_changed.emit(_current_choices.duplicate(true))
 		STATE_RUNNING:
+			_emit_current_line_after_restore()
+		STATE_PAUSED:
 			_emit_current_line_after_restore()
 		STATE_ENDED:
 			ended.emit()
@@ -578,6 +627,7 @@ func _select_choice_target(target: String, reason: String, mark_exhaustive: bool
 		_push_exhaustive_choice_frame(source_node_id)
 	_current_choices.clear()
 	_reset_choice_timer(true)
+	_paused_event_node_id = ""
 	_state = STATE_RUNNING
 	_trace("transition", TRACE_LEVEL_INFO, {"sourceNodeId": source_node_id, "targetNodeId": target, "reason": reason})
 	_enter_node(target)
@@ -697,6 +747,7 @@ func _return_to_exhaustive_choice_if_needed() -> bool:
 		_exhaustive_choice_stack.pop_back()
 		return false
 	_state = STATE_RUNNING
+	_paused_event_node_id = ""
 	_current_choices.clear()
 	_enter_node(choice_node_id)
 	return true
@@ -965,35 +1016,43 @@ func _execute_variable_action(action: Dictionary, phase: String, node_id: String
 	return {"ok": true, "error": ""}
 
 func _execute_emit_event_action(action: Dictionary, phase: String, node_id: String) -> Dictionary:
-	var event_id := String(action.get("eventId", ""))
-	if event_id.is_empty():
-		return {"ok": false, "error": "EmitEvent action has empty eventId on node %s" % node_id}
-
-	var payload := {
-		"nodeId": node_id,
-		"phase": phase,
-		"eventId": event_id
-	}
-	_emitted_events.append(payload)
-	_trace("event", TRACE_LEVEL_INFO, payload)
-	event_emitted.emit(payload)
-	return {"ok": true, "error": ""}
+	return _emit_structured_event(action, phase, node_id, "action")
 
 func _execute_emit_event_node(node: Dictionary) -> Dictionary:
 	var node_id := String(node.get("nodeId", ""))
-	var event_id := String(node.get("eventId", ""))
-	if event_id.is_empty():
-		return {"ok": false, "error": "EmitEvent node has empty eventId: %s" % node_id}
+	return _emit_structured_event(node, "node", node_id, "node")
 
-	var payload := {
-		"nodeId": node_id,
-		"phase": "node",
-		"eventId": event_id
-	}
+func _emit_structured_event(data: Dictionary, phase: String, node_id: String, source: String) -> Dictionary:
+	var payload_check := _build_event_payload(data, phase, node_id, source)
+	if not payload_check.get("ok", false):
+		return payload_check
+	var payload: Dictionary = payload_check.get("payload", {})
 	_emitted_events.append(payload)
 	_trace("event", TRACE_LEVEL_INFO, payload)
 	event_emitted.emit(payload)
 	return {"ok": true, "error": ""}
+
+func _build_event_payload(data: Dictionary, phase: String, node_id: String, source: String) -> Dictionary:
+	var event_type := String(data.get("eventType", "")).strip_edges()
+	if data.has("eventId"):
+		return {"ok": false, "error": "EmitEvent %s eventId is no longer supported on node %s" % [source, node_id]}
+	if event_type.is_empty():
+		return {"ok": false, "error": "EmitEvent %s has empty eventType on node %s" % [source, node_id]}
+	if data.has("params") and typeof(data.get("params")) != TYPE_DICTIONARY:
+		return {"ok": false, "error": "EmitEvent %s params must be an object on node %s" % [source, node_id]}
+	var params: Dictionary = {}
+	if data.has("params"):
+		params = (data.get("params") as Dictionary).duplicate(true)
+	return {
+		"ok": true,
+		"error": "",
+		"payload": {
+			"nodeId": node_id,
+			"phase": phase,
+			"eventType": event_type,
+			"params": params
+		}
+	}
 
 func _resolve_condition_node_target(node: Dictionary) -> Dictionary:
 	var node_id := String(node.get("nodeId", ""))
@@ -1028,6 +1087,7 @@ func _finish() -> void:
 	if _return_to_exhaustive_choice_if_needed():
 		return
 	_state = STATE_ENDED
+	_paused_event_node_id = ""
 	_current_choices.clear()
 	_reset_choice_timer(true)
 	_trace("ended", TRACE_LEVEL_INFO, {})
@@ -1035,6 +1095,7 @@ func _finish() -> void:
 
 func _emit_error(message: String) -> void:
 	_state = STATE_ENDED
+	_paused_event_node_id = ""
 	_current_choices.clear()
 	_reset_choice_timer(true)
 	_trace("error", TRACE_LEVEL_ERROR, {"message": message})

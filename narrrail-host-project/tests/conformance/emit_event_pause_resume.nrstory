@@ -1,6 +1,6 @@
 meta:
   schemaVersion: 1
-  storyId: emit_event_node
+  storyId: emit_event_pause_resume
   entryNodeId: N_Start
 
 variables: []
@@ -12,34 +12,30 @@ nodes:
       speakerId: Hero
       textKey: start
 
-  - nodeId: N_Event
+  - nodeId: N_Delay
     nodeType: EmitEvent
-    eventType: door_open
+    eventType: delay
+    params:
+      time: 1.0
 
-  - nodeId: N_EndLine
-    nodeType: Dialogue
-    dialogue:
-      speakerId: Hero
-      textKey: after_event
+  - nodeId: N_Choice
+    nodeType: Choice
+    choices:
+      - textKey: continue
+        targetNodeId: N_End
 
   - nodeId: N_End
     nodeType: End
 
 edges:
   - sourceNodeId: N_Start
-    targetNodeId: N_Event
+    targetNodeId: N_Delay
     priority: 0
     condition:
       logic: All
       terms: []
-  - sourceNodeId: N_Event
-    targetNodeId: N_EndLine
-    priority: 0
-    condition:
-      logic: All
-      terms: []
-  - sourceNodeId: N_EndLine
-    targetNodeId: N_End
+  - sourceNodeId: N_Delay
+    targetNodeId: N_Choice
     priority: 0
     condition:
       logic: All

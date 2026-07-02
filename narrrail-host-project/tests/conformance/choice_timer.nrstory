@@ -17,7 +17,7 @@ nodes:
       timeoutChoiceTextKey: timeout
     exitActions:
       - actionType: EmitEvent
-        eventId: choice_exit
+        eventType: choice_exit
 
   - nodeId: N_Manual
     nodeType: Dialogue

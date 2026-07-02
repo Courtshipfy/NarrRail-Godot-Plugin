@@ -2,6 +2,7 @@ extends Control
 
 const SESSION_SCRIPT := "res://addons/narrrail/runtime/narrrail_session.gd"
 const OUTLINE_RUNNER_SCRIPT := "res://addons/narrrail/runtime/narrrail_outline_runner.gd"
+const EVENT_ROUTER_SCRIPT := "res://addons/narrrail/runtime/narrrail_event_router.gd"
 const STORY_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/story_resource_loader.gd"
 const OUTLINE_RESOURCE_LOADER_SCRIPT := "res://addons/narrrail/runtime/outline_resource_loader.gd"
 const STORY_DIR := "res://sample/stories"
@@ -22,12 +23,15 @@ const SAVE_PATH := "user://narrrail_demo_save.json"
 @onready var status_label: Label = $Panel/Margin/VBox/BottomBar/StatusLabel
 
 var _session: RefCounted
+var _event_router: RefCounted
 var _story_paths: Array[String] = []
 var _story_labels: Dictionary = {}
 var _choice_timer_label: Label
 var _current_mode := "story"
+var _delay_token: int = 0
 
 func _ready() -> void:
+	_create_event_router()
 	next_button.pressed.connect(_on_next_pressed)
 	load_button.pressed.connect(_on_load_pressed)
 	refresh_button.pressed.connect(_on_refresh_pressed)
@@ -53,6 +57,8 @@ func _create_session() -> bool:
 	_session.choices_changed.connect(_on_choices_changed)
 	_session.choice_timer_changed.connect(_on_choice_timer_changed)
 	_session.choice_timed_out.connect(_on_choice_timed_out)
+	if _event_router != null:
+		_session.event_emitted.connect(_event_router.dispatch)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
 	return true
@@ -70,9 +76,20 @@ func _create_outline_runner() -> bool:
 	_session.choices_changed.connect(_on_choices_changed)
 	_session.choice_timer_changed.connect(_on_choice_timer_changed)
 	_session.choice_timed_out.connect(_on_choice_timed_out)
+	if _event_router != null:
+		_session.event_emitted.connect(_event_router.dispatch)
 	_session.ended.connect(_on_ended)
 	_session.error_raised.connect(_on_error)
 	return true
+
+func _create_event_router() -> void:
+	var router_script: Script = load(EVENT_ROUTER_SCRIPT)
+	if router_script == null:
+		_push_status("Failed to load event router script")
+		return
+
+	_event_router = router_script.new()
+	_event_router.register_type("delay", Callable(self, "_on_delay_event"))
 
 func _load_path(path: String) -> void:
 	if _is_outline_path(path):
@@ -292,6 +309,12 @@ func _build_demo_story() -> Dictionary:
 				"dialogue": {"speakerId": "Hero", "textKey": "你好，今天一起去散步吗？"}
 			},
 			{
+				"nodeId": "N_Delay",
+				"nodeType": "EmitEvent",
+				"eventType": "delay",
+				"params": {"time": 1.0}
+			},
+			{
 				"nodeId": "N_Choice",
 				"nodeType": "Choice",
 				"choices": [
@@ -315,7 +338,8 @@ func _build_demo_story() -> Dictionary:
 			}
 		],
 		"edges": [
-			{"sourceNodeId": "N_Start", "targetNodeId": "N_Choice", "priority": 0, "condition": {"logic": "All", "terms": []}},
+			{"sourceNodeId": "N_Start", "targetNodeId": "N_Delay", "priority": 0, "condition": {"logic": "All", "terms": []}},
+			{"sourceNodeId": "N_Delay", "targetNodeId": "N_Choice", "priority": 0, "condition": {"logic": "All", "terms": []}},
 			{"sourceNodeId": "N_Yes", "targetNodeId": "N_End", "priority": 0, "condition": {"logic": "All", "terms": []}},
 			{"sourceNodeId": "N_No", "targetNodeId": "N_End", "priority": 0, "condition": {"logic": "All", "terms": []}}
 		]
@@ -372,6 +396,28 @@ func _on_choice_timer_changed(payload: Dictionary) -> void:
 
 func _on_choice_timed_out(payload: Dictionary) -> void:
 	_push_status("Timed out: %s" % String(payload.get("timeoutChoiceTextKey", "Timeout")))
+
+func _on_delay_event(payload: Dictionary) -> void:
+	if _session == null or not _session.has_method("pause") or not _session.has_method("resume"):
+		return
+	var params: Dictionary = {}
+	var raw_params = payload.get("params", {})
+	if typeof(raw_params) == TYPE_DICTIONARY:
+		params = raw_params
+	var seconds := maxf(0.0, _float_param(params.get("time", 0.0), 0.0))
+	var paused_session: RefCounted = _session
+	_delay_token += 1
+	var token := _delay_token
+	paused_session.call("pause")
+	next_button.disabled = true
+	_push_status("Delay: %.1fs" % seconds)
+	await get_tree().create_timer(seconds).timeout
+	if _session != paused_session or token != _delay_token:
+		return
+	paused_session.call("resume")
+	var state: Dictionary = paused_session.call("get_state")
+	if _session == paused_session and String(state.get("state", "")) != "ended":
+		_push_status("Running")
 
 func _on_ended() -> void:
 	_clear_choices()
@@ -475,6 +521,7 @@ func _ensure_choice_timer_label() -> void:
 	choices_box.add_child(_choice_timer_label)
 
 func _clear_story_view() -> void:
+	_delay_token += 1
 	_clear_choices()
 	speaker_label.text = "Speaker: "
 	text_label.text = ""
@@ -547,3 +594,13 @@ func _format_diagnostics(result: Dictionary) -> String:
 
 func _push_status(text: String) -> void:
 	status_label.text = text
+
+func _float_param(value, fallback: float) -> float:
+	match typeof(value):
+		TYPE_INT, TYPE_FLOAT:
+			return float(value)
+		_:
+			var text := str(value)
+			if text.is_valid_float():
+				return float(text)
+	return fallback

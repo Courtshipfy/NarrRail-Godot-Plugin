@@ -68,11 +68,27 @@ Behavior:
 Failure:
 - emits `error_raised(message)`
 
+### `pause() -> void`
+
+Pause automatic runtime progression while the session is running.
+
+When called from an `event_emitted` handler for a standalone `EmitEvent` node, the session remains on that event node and does not follow outgoing edges until `resume()` is called. This is a generic control API; the runtime does not interpret event types such as `delay`, `audio.play`, or `inventory.add_item`.
+
+Failure:
+- emits `error_raised(message)` if called outside `running` state
+
+### `resume() -> void`
+
+Resume a paused session.
+
+If the pause happened on a standalone `EmitEvent` node, `resume()` continues by evaluating that node's outgoing edges. This lets game code implement events such as timed waits without hardcoding event semantics into the NarrRail runtime.
+
 ### `get_state() -> Dictionary`
 
 Returns current runtime snapshot:
 - `state`
 - `currentNodeId`
+- `pausedEventNodeId`
 - `currentLineIndex`
 - `choices`
 - `variables`
@@ -122,7 +138,7 @@ Restore a session from a snapshot using the supplied story data.
 Behavior:
 - validates save schema version and story identity
 - validates the supplied story data before applying runtime state
-- restores variables, event history, current node, line index, choices, and exhaustive-choice bookkeeping
+- restores variables, event history, current node, line index, paused event continuation, choices, and exhaustive-choice bookkeeping
 - emits the current presentation signal after restore (`line_changed`, `choices_changed`, or `ended`)
 
 Failure:
@@ -167,6 +183,46 @@ Emitted when `Set/Add/Subtract` mutates variable state.
 ### `event_emitted(payload: Dictionary)`
 
 Emitted when an `EmitEvent` action or standalone `EmitEvent` node is executed.
+
+Payload fields:
+- `nodeId: String`
+- `phase: String` - `enter`, `exit`, or `node`
+- `eventType: String` - structured event type
+- `params: Dictionary` - structured event params, or `{}`
+
+The runtime forwards event data only. Gameplay-specific meanings such as inventory, audio, or scene changes belong in game code.
+
+Use `NarrRailEventRouter` when you want story events to trigger engine behavior directly:
+
+```gdscript
+var router := NarrRailEventRouter.new()
+router.register_type("inventory.add_item", Callable(self, "_on_inventory_add_item"))
+session.event_emitted.connect(router.dispatch)
+```
+
+You can also consume structured events directly:
+
+```gdscript
+session.event_emitted.connect(func(payload: Dictionary):
+	match String(payload.get("eventType", "")):
+		"inventory.add_item":
+			var params := payload.get("params", {})
+			# game-specific handling
+)
+```
+
+Example project-side delay handler:
+
+```gdscript
+router.register_type("delay", Callable(self, "_on_delay_event"))
+
+func _on_delay_event(payload: Dictionary) -> void:
+	var params: Dictionary = payload.get("params", {})
+	var seconds := float(params.get("time", 0.0))
+	session.pause()
+	await get_tree().create_timer(maxf(seconds, 0.0)).timeout
+	session.resume()
+```
 
 ### `trace_logged(payload: Dictionary)`
 
@@ -242,6 +298,14 @@ Forwards a choice selection to the active story session.
 ### `advance_time(delta_seconds: float) -> void`
 
 Forwards choice timer time to the active story session.
+
+### `pause() -> void`
+
+Forwards to the active story session. Used by project-side event handlers that need to delay story progression while running through an outline.
+
+### `resume() -> void`
+
+Forwards to the active story session.
 
 ### `get_state() -> Dictionary`
 

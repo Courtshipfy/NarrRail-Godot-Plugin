@@ -1,0 +1,57 @@
+meta:
+  schemaVersion: 1
+  storyId: emit_event_structured
+  entryNodeId: N_Start
+
+variables: []
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: start
+    enterActions:
+      - actionType: EmitEvent
+        eventType: inventory.add_item
+        params:
+          itemId: key
+          count: 1
+    exitActions:
+      - actionType: EmitEvent
+        eventType: ui.flash
+        params:
+          color: green
+
+  - nodeId: N_TypeNode
+    nodeType: EmitEvent
+    eventType: audio.play
+    params:
+      cue: door
+
+  - nodeId: N_DefaultParams
+    nodeType: EmitEvent
+    eventType: scene.marker
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_TypeNode
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_TypeNode
+    targetNodeId: N_DefaultParams
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_DefaultParams
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

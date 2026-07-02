@@ -1,0 +1,14 @@
+meta:
+  schemaVersion: 1
+  storyId: invalid_emit_event_legacy_node
+  entryNodeId: N_Event
+
+variables: []
+
+nodes:
+  - nodeId: N_Event
+    nodeType: EmitEvent
+    eventId: legacy_event
+    eventType: delay
+
+edges: []

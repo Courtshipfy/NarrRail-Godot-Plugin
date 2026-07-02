@@ -29,7 +29,7 @@ nodes:
           scope: Session
         value: "9"
       - actionType: EmitEvent
-        eventId: score_ready
+        eventType: score_ready
     exitActions:
       - actionType: Subtract
         variable:
@@ -38,7 +38,7 @@ nodes:
           scope: Session
         value: "4"
       - actionType: EmitEvent
-        eventId: left_start
+        eventType: left_start
 
   - nodeId: N_Bonus
     nodeType: Dialogue
@@ -53,13 +53,13 @@ nodes:
           scope: Session
         value: "4"
       - actionType: EmitEvent
-        eventId: bonus_enter
+        eventType: bonus_enter
 
   - nodeId: N_End
     nodeType: End
     enterActions:
       - actionType: EmitEvent
-        eventId: end_enter
+        eventType: end_enter
 
 edges:
   - sourceNodeId: N_Start

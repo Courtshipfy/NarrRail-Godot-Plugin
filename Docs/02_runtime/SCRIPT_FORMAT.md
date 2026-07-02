@@ -82,7 +82,8 @@ edges: []
 | `choiceMode` | 枚举 | 否 | 用于 `Choice` 类型，`SinglePass`（默认）/ `ExhaustiveUntilComplete` |
 | `choiceCompletionTargetNodeId` | string | 否 | 用于 `Choice` 类型；当 `choiceMode=ExhaustiveUntilComplete` 时必填 |
 | `jumpTargetNodeId` | string | 否 | 用于 `Jump` 类型 |
-| `eventId` | string | 否 | 用于独立 `EmitEvent` 类型 |
+| `eventType` | string | EmitEvent 需要 | 结构化事件类型 |
+| `params` | object | 否 | 结构化事件参数，默认 `{}` |
 | `enterActions` | 数组 | 否 | 节点主体执行前的动作 |
 | `exitActions` | 数组 | 否 | 离开节点前的动作 |
 
@@ -125,12 +126,16 @@ lines:
 ```yaml
 - nodeId: N_PlayBgm
   nodeType: EmitEvent
-  eventId: bgm_start
+  eventType: audio.play
+  params:
+    cue: bgm_start
 ```
 
 说明：
 - 运行到该节点时，runtime 发出 `event_emitted`。
 - 事件 payload 的 `phase` 为 `node`。
+- `eventType` 必填，用于结构化事件路由。
+- `params` 可省略，省略时 runtime payload 中为 `{}`。
 - 发出事件后，runtime 自动沿该节点出边继续。
 
 ## 6. 边（Edges）
@@ -183,7 +188,6 @@ terms:
     type: Int
     scope: Session
   value: "2"
-  eventId: ""
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
@@ -191,7 +195,12 @@ terms:
 | `actionType` | 枚举 | 是 | `Set` / `Add` / `Subtract` / `EmitEvent` |
 | `variable` | 对象 | Set/Add/Subtract 需要 | 变量引用 |
 | `value` | string | Set/Add/Subtract 需要 | 输入值 |
-| `eventId` | string | EmitEvent 需要 | 事件标识符 |
+| `eventType` | string | EmitEvent 需要 | 结构化事件类型 |
+| `params` | object | 否 | 结构化事件参数，默认 `{}` |
+
+`EmitEvent` action 必须填写 `eventType`。旧 `eventId` 字段不再支持。
+
+`SetVariable` 节点的 `actions` 字段使用同一动作结构，并按数组顺序执行。
 
 ## 9. 校验规则
 
@@ -201,7 +210,11 @@ terms:
 - 无效的边引用
 - 无效的选项目标引用
 - 空变量名或重复变量名
-- 独立 `EmitEvent` 节点缺少 `eventId`
+- 独立 `EmitEvent` 节点缺少 `eventType`，或仍使用旧 `eventId`
+- `EmitEvent` action 缺少 `eventType`，或仍使用旧 `eventId`
+- `EmitEvent` 的 `params` 不是对象
+- action 变量引用为空或使用不支持的 `actionType`
+- 运行时启动时，action 引用不存在的变量会报错；变量可能来自同故事文件或合并后的 GlobalConfig。
 
 警告（建议修复）：
 - 孤立节点（除入口节点外）
@@ -489,7 +502,6 @@ variables:
         type: Int
         scope: Session
       value: "10"
-      eventId: ""
 ```
 
 **条件边（优先级）：**

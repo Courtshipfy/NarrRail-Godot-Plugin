@@ -68,8 +68,8 @@ static func validate_minimal(story: Dictionary) -> Dictionary:
 					errors.append("Jump target is empty on node: %s" % jump_node_id)
 				elif not node_ids.has(jump_target):
 					errors.append("Jump target not found on node %s: %s" % [jump_node_id, jump_target])
-			if node_type == "EmitEvent" and String(n.get("eventId", "")).is_empty():
-				errors.append("EmitEvent node missing eventId: %s" % String(n.get("nodeId", "")))
+			if node_type == "EmitEvent":
+				_validate_emit_event_fields(n, String(n.get("nodeId", "")), "node", errors)
 			_validate_node_actions(n, variable_names, errors)
 			continue
 		var source_node_id := String(n.get("nodeId", ""))
@@ -142,7 +142,7 @@ static func _validate_choice_timer(node: Dictionary, edges: Array, node_ids: Dic
 
 static func _validate_node_actions(node: Dictionary, variable_names: Dictionary, errors: Array[String]) -> void:
 	var node_id := String(node.get("nodeId", ""))
-	for field in ["enterActions", "exitActions"]:
+	for field in ["enterActions", "exitActions", "actions"]:
 		for a in node.get(field, []):
 			var action: Dictionary = a
 			var action_type := String(action.get("actionType", ""))
@@ -157,8 +157,7 @@ static func _validate_node_actions(node: Dictionary, variable_names: Dictionary,
 					if not action.has("value"):
 						errors.append("%s action missing value on node: %s" % [action_type, node_id])
 				"EmitEvent":
-					if String(action.get("eventId", "")).is_empty():
-						errors.append("EmitEvent action missing eventId on node: %s" % node_id)
+					_validate_emit_event_fields(action, node_id, "action", errors)
 				_:
 					errors.append("Unsupported actionType on node %s: %s" % [node_id, action_type])
 
@@ -167,3 +166,12 @@ static func _variable_ref_name(variable_ref: Dictionary) -> String:
 	if name.is_empty():
 		name = String(variable_ref.get("variableName", ""))
 	return name
+
+static func _validate_emit_event_fields(data: Dictionary, node_id: String, source: String, errors: Array[String]) -> void:
+	var event_type := String(data.get("eventType", "")).strip_edges()
+	if data.has("eventId"):
+		errors.append("EmitEvent %s eventId is no longer supported on node: %s" % [source, node_id])
+	if event_type.is_empty():
+		errors.append("EmitEvent %s missing eventType on node: %s" % [source, node_id])
+	if data.has("params") and typeof(data.get("params")) != TYPE_DICTIONARY:
+		errors.append("EmitEvent %s params must be an object on node: %s" % [source, node_id])
