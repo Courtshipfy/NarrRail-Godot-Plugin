@@ -32,6 +32,7 @@ func _run() -> void:
 	_expect_equal("report failed", report.get("failed", -1), 0)
 	_expect_equal("report created", report.get("created", -1), 5)
 	_expect_equal("report deleted", report.get("deleted", -1), 1)
+	_expect_equal("report registry_path", report.get("registry_path", ""), "%s/story_registry.tres" % TARGET_ROOT)
 
 	var generated_root := "%s/%s" % [TARGET_ROOT, REPO_NAME]
 	_expect_story("%s/main.tres" % generated_root, "sync_main", "%s/main.nrstory" % _repo_abs)
@@ -39,7 +40,11 @@ func _run() -> void:
 	_expect_story("%s/nested/global_ref.tres" % generated_root, "sync_global_ref", "%s/nested/global_ref.nrstory" % _repo_abs)
 	_expect_global_config("%s/global_config.tres" % generated_root, "%s/global_config.nrstory" % _repo_abs)
 	_expect_outline("%s/main_story_outline.tres" % generated_root, "sync_outline", "%s/main_story.nroutline" % _repo_abs)
+	_expect_registry("%s/story_registry.tres" % TARGET_ROOT, generated_root)
 	_expect_global_config_runtime("%s/nested/global_ref.tres" % generated_root)
+	ProjectSettings.set_setting("narrrail/story_resource_root", TARGET_ROOT)
+	_expect_story_resolution("%s/story_registry.tres" % TARGET_ROOT, "%s/main.tres" % generated_root)
+	ProjectSettings.set_setting("narrrail/story_resource_root", "res://narrrail_stories")
 	if ResourceLoader.exists("%s/deleted.tres" % generated_root):
 		_failures.append("stale generated resource was not deleted")
 
@@ -201,6 +206,17 @@ func _expect_outline(path: String, rail_id: String, source_path: String) -> void
 	var outline: Dictionary = resource.get("outline_data")
 	_expect_equal("%s railId" % path, String(outline.get("meta", {}).get("railId", "")), rail_id)
 
+func _expect_registry(path: String, generated_root: String) -> void:
+	var resource := ResourceLoader.load(path)
+	if resource == null:
+		_failures.append("Missing generated story registry: %s" % path)
+		return
+	var story_paths: Dictionary = resource.get("story_paths")
+	var basename_paths: Dictionary = resource.get("basename_paths")
+	_expect_equal("registry sync_main path", String(story_paths.get("sync_main", "")), "%s/main.tres" % generated_root)
+	_expect_equal("registry main basename path", String(basename_paths.get("main", "")), "%s/main.tres" % generated_root)
+	_expect_equal("registry sync_branch path", String(story_paths.get("sync_branch", "")), "%s/nested/branch.tres" % generated_root)
+
 func _expect_global_config_runtime(path: String) -> void:
 	var loader_script: Script = load(STORY_RESOURCE_LOADER_SCRIPT)
 	var session_script: Script = load(SESSION_SCRIPT)
@@ -224,6 +240,20 @@ func _expect_global_config_runtime(path: String) -> void:
 	session.next()
 	_expect_equal("global config runtime errors", errors, [])
 	_expect_equal("global config runtime variables", session.get_state().get("variables", {}), {"Affinity": 1})
+
+func _expect_story_resolution(registry_path: String, expected_path: String) -> void:
+	var loader_script: Script = load(STORY_RESOURCE_LOADER_SCRIPT)
+	if loader_script == null:
+		_failures.append("Failed to load story resource loader for registry resolution")
+		return
+	_expect_equal("resolve by storyId", loader_script.call("resolve_story_path", "sync_main", registry_path), expected_path)
+	_expect_equal("resolve by basename", loader_script.call("resolve_story_path", "main", registry_path), expected_path)
+	var result: Dictionary = loader_script.call("load_story", "sync_main")
+	if not result.get("ok", false):
+		_failures.append("Failed to load story by storyId through generated registry: %s" % String(result.get("error", "unknown")))
+		return
+	var story: Dictionary = result.get("story", {})
+	_expect_equal("load story by storyId", String(story.get("meta", {}).get("storyId", "")), "sync_main")
 
 func _write_file(path: String, content: String) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)

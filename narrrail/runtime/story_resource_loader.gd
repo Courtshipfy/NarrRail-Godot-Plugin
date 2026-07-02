@@ -2,18 +2,23 @@ class_name NarrRailStoryResourceLoader
 extends RefCounted
 
 const NRSTORY_LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
+const STORY_REGISTRY_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_story_registry_resource.gd"
 
 static func load_story(path: String) -> Dictionary:
 	if path.strip_edges().is_empty():
 		return {"ok": false, "story": {}, "error": "Story path is empty", "diagnostics": []}
 
-	var imported := ResourceLoader.load(path)
+	var resolved_path := resolve_story_path(path)
+	if resolved_path.is_empty():
+		return {"ok": false, "story": {}, "error": "NarrRail story not found for event/story name: %s" % path, "diagnostics": []}
+
+	var imported := ResourceLoader.load(resolved_path)
 	if imported != null and _has_property(imported, "story_data"):
 		var data = imported.get("story_data")
 		if typeof(data) == TYPE_DICTIONARY and not (data as Dictionary).is_empty():
 			return {
 				"ok": true,
-				"story": _with_global_config_variables(data, path),
+				"story": _with_global_config_variables(data, resolved_path),
 				"error": "",
 				"diagnostics": []
 			}
@@ -22,12 +27,26 @@ static func load_story(path: String) -> Dictionary:
 	if loader_script == null:
 		return {"ok": false, "story": {}, "error": "Loader script missing", "diagnostics": []}
 
-	var result: Dictionary = loader_script.call("load_story", path)
+	var result: Dictionary = loader_script.call("load_story", resolved_path)
 	if not result.get("ok", false):
 		return result
 
-	result["story"] = _with_global_config_variables(result.get("story", {}), path)
+	result["story"] = _with_global_config_variables(result.get("story", {}), resolved_path)
 	return result
+
+static func resolve_story_path(story_name_or_path: String, registry_path: String = "") -> String:
+	var key := story_name_or_path.strip_edges()
+	if key.is_empty():
+		return ""
+	if key.begins_with("res://") or key.begins_with("user://"):
+		return key
+
+	var registry_script: Script = load(STORY_REGISTRY_RESOURCE_SCRIPT)
+	if registry_script == null:
+		return ""
+	if registry_path.strip_edges().is_empty():
+		return String(registry_script.call("resolve_story_path", key))
+	return String(registry_script.call("resolve_story_path", key, registry_path))
 
 static func _with_global_config_variables(story_data: Dictionary, story_path: String) -> Dictionary:
 	var story := story_data.duplicate(true)

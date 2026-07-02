@@ -8,6 +8,27 @@ This document defines the current public runtime API surface for game-side integ
 - Script: `res://addons/narrrail/runtime/narrrail_session.gd`
 - Type: `RefCounted`
 
+## Story Resource Resolution
+
+- Class: `NarrRailStoryResourceLoader`
+- Script: `res://addons/narrrail/runtime/story_resource_loader.gd`
+
+### `resolve_story_path(story_name_or_path: String, registry_path: String = "") -> String`
+
+Resolve a story identifier to a loadable resource path.
+
+Resolution order:
+- explicit `res://` or `user://` paths are returned directly
+- synced story registry at `<narrrail/story_resource_root>/story_registry.tres`
+- optional project alias map in `narrrail/story_aliases`
+- directory scanning fallback for editor compatibility
+
+The story sync workflow generates `story_registry.tres` as a normal project resource so exported builds can resolve synced stories without relying on runtime directory scans.
+
+### `load_story(path: String) -> Dictionary`
+
+Loads either an explicit story path or a story identifier such as `train_story`. Identifier loading uses `resolve_story_path()` first, then loads the resolved `NarrRailStoryResource`.
+
 ## Lifecycle Methods
 
 ### `start(story_data: Dictionary, initial_variables: Dictionary = {}) -> void`

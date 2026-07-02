@@ -5,11 +5,13 @@ extends RefCounted
 const SETTING_REPOSITORY_PATH := "narrrail/story_repository_path"
 const SETTING_PULL_GIT_BEFORE_SYNC := "narrrail/pull_git_before_sync"
 const SETTING_RESOURCE_ROOT := "narrrail/story_resource_root"
+const SETTING_ALIAS_MAP := "narrrail/story_aliases"
 
 const DEFAULT_RESOURCE_ROOT := "res://narrrail_stories"
 const LOADER_SCRIPT := "res://addons/narrrail/importer/nrstory_loader.gd"
 const OUTLINE_LOADER_SCRIPT := "res://addons/narrrail/importer/nroutline_loader.gd"
 const STORY_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_story_resource.gd"
+const STORY_REGISTRY_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_story_registry_resource.gd"
 const GLOBAL_CONFIG_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_global_config_resource.gd"
 const OUTLINE_RESOURCE_SCRIPT := "res://addons/narrrail/narrrail_outline_resource.gd"
 
@@ -17,6 +19,7 @@ static func ensure_project_settings() -> void:
 	_ensure_setting(SETTING_REPOSITORY_PATH, "", TYPE_STRING)
 	_ensure_setting(SETTING_PULL_GIT_BEFORE_SYNC, true, TYPE_BOOL)
 	_ensure_setting(SETTING_RESOURCE_ROOT, DEFAULT_RESOURCE_ROOT, TYPE_STRING)
+	_ensure_setting(SETTING_ALIAS_MAP, {}, TYPE_DICTIONARY)
 
 static func sync_from_project_settings(options: Dictionary = {}) -> Dictionary:
 	ensure_project_settings()
@@ -59,9 +62,10 @@ static func sync_repository(repository_path: String, resource_root: String = DEF
 	var loader_script: Script = load(LOADER_SCRIPT)
 	var outline_loader_script: Script = load(OUTLINE_LOADER_SCRIPT)
 	var story_resource_script: Script = load(STORY_RESOURCE_SCRIPT)
+	var story_registry_resource_script: Script = load(STORY_REGISTRY_RESOURCE_SCRIPT)
 	var global_config_resource_script: Script = load(GLOBAL_CONFIG_RESOURCE_SCRIPT)
 	var outline_resource_script: Script = load(OUTLINE_RESOURCE_SCRIPT)
-	if loader_script == null or outline_loader_script == null or story_resource_script == null or global_config_resource_script == null or outline_resource_script == null:
+	if loader_script == null or outline_loader_script == null or story_resource_script == null or story_registry_resource_script == null or global_config_resource_script == null or outline_resource_script == null:
 		report.errors.append("Failed to load NarrRail sync scripts/resources")
 		return report
 
@@ -109,7 +113,67 @@ static func sync_repository(repository_path: String, resource_root: String = DEF
 				report.failed += 1
 				report.errors.append("Failed to delete stale resource: %s" % stale_path)
 
+	var registry_result := _write_story_registry(resource_root, story_registry_resource_script, repo_abs)
+	if not registry_result.get("ok", false):
+		report.failed += 1
+		report.errors.append(String(registry_result.get("error", "Failed to write story registry")))
+	else:
+		report["registry_path"] = String(registry_result.get("path", ""))
+
 	return report
+
+static func _write_story_registry(resource_root: String, story_registry_resource_script: Script, repo_abs: String) -> Dictionary:
+	var registry_path := "%s/story_registry.tres" % resource_root
+	var existing := ResourceLoader.load(registry_path) if ResourceLoader.exists(registry_path) else null
+	var registry: Resource = existing if existing != null and _has_property(existing, "story_paths") else story_registry_resource_script.new()
+	var story_paths: Dictionary = {}
+	var basename_paths: Dictionary = {}
+	var story_metadata: Dictionary = {}
+
+	for path in _find_resource_files(ProjectSettings.globalize_path(resource_root)):
+		var res_path := ProjectSettings.localize_path(path)
+		if res_path == registry_path:
+			continue
+		var resource := ResourceLoader.load(res_path)
+		if resource == null or not _has_property(resource, "story_data"):
+			continue
+		var story_data = resource.get("story_data")
+		if typeof(story_data) != TYPE_DICTIONARY:
+			continue
+		var meta: Dictionary = (story_data as Dictionary).get("meta", {})
+		var story_id := String(meta.get("storyId", ""))
+		var basename := res_path.get_file().get_basename()
+		var source_path := String(resource.get("source_path")) if _has_property(resource, "source_path") else ""
+		var source_relative_path := _relative_path(repo_abs, source_path) if not source_path.is_empty() else ""
+		var metadata := {
+			"path": res_path,
+			"basename": basename,
+			"source_path": source_path,
+			"source_relative_path": source_relative_path,
+			"title": String(meta.get("title", "")),
+			"updated_at_unix": Time.get_unix_time_from_system()
+		}
+		if not story_id.is_empty():
+			story_paths[story_id] = res_path
+			story_metadata[story_id] = metadata
+		if not basename.is_empty():
+			basename_paths[basename] = res_path
+			if not story_metadata.has(basename):
+				story_metadata[basename] = metadata
+
+	registry.set("resource_root", resource_root)
+	registry.set("generated_at_unix", Time.get_unix_time_from_system())
+	registry.set("story_paths", story_paths)
+	registry.set("basename_paths", basename_paths)
+	registry.set("story_metadata", story_metadata)
+
+	var make_err := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(resource_root))
+	if make_err != OK:
+		return {"ok": false, "error": "Failed to create story registry directory: %s" % resource_root}
+	var save_err := ResourceSaver.save(registry, registry_path)
+	if save_err != OK:
+		return {"ok": false, "error": "Failed to save story registry: %s" % registry_path}
+	return {"ok": true, "path": registry_path}
 
 static func _write_resource(kind: String, source_file: String, target_path: String, loader_script: Script, outline_loader_script: Script, story_resource_script: Script, global_config_resource_script: Script, outline_resource_script: Script, story_ids: Array) -> Dictionary:
 	var existing := ResourceLoader.load(target_path) if ResourceLoader.exists(target_path) else null
@@ -339,5 +403,6 @@ static func _new_report(repository_path: String, resource_root: String) -> Dicti
 		"failed": 0,
 		"skipped": 0,
 		"errors": [],
-		"git_message": ""
+		"git_message": "",
+		"registry_path": ""
 	}
