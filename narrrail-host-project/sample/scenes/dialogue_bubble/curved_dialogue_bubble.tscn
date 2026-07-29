@@ -1,0 +1,87 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://sample/scripts/dialogue_bubble/curved_dialogue_bubble.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://sample/assets/dialogue_bubble/curved_paper_grain.svg" id="3_grain"]
+[ext_resource type="Texture2D" path="res://sample/assets/dialogue_bubble/curved_spine.svg" id="4_spine"]
+[ext_resource type="Texture2D" path="res://sample/assets/dialogue_bubble/curved_ribbon_top.svg" id="5_top_ribbon"]
+[ext_resource type="Texture2D" path="res://sample/assets/dialogue_bubble/curved_ribbon_bottom.svg" id="6_bottom_ribbon"]
+
+[node name="CurvedDialogueBubble" type="Control"]
+custom_minimum_size = Vector2(360, 220)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 360.0
+offset_bottom = 220.0
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="PaperGrain" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 65.0
+offset_top = 57.0
+offset_right = 334.0
+offset_bottom = 157.0
+mouse_filter = 2
+texture_repeat = 2
+texture = ExtResource("3_grain")
+expand_mode = 1
+stretch_mode = 1
+
+[node name="Spine" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 7.0
+offset_top = 24.0
+offset_right = 59.0
+offset_bottom = 168.0
+mouse_filter = 2
+texture = ExtResource("4_spine")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="TopRibbon" type="TextureRect" parent="."]
+show_behind_parent = true
+layout_mode = 0
+offset_left = 234.0
+offset_top = 2.0
+offset_right = 360.0
+offset_bottom = 56.0
+mouse_filter = 2
+texture = ExtResource("5_top_ribbon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BottomRibbon" type="TextureRect" parent="."]
+show_behind_parent = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 153.0
+offset_right = 138.0
+offset_bottom = 211.0
+mouse_filter = 2
+texture = ExtResource("6_bottom_ribbon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SpeakerName" type="Label" parent="."]
+layout_mode = 0
+offset_left = 74.0
+offset_top = 43.0
+offset_right = 326.0
+offset_bottom = 68.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.31, 0.22, 0.42, 1)
+theme_override_font_sizes/font_size = 17
+text = "Speaker"
+
+[node name="LineText" type="Label" parent="."]
+layout_mode = 0
+offset_left = 76.0
+offset_top = 74.0
+offset_right = 326.0
+offset_bottom = 116.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.12, 0.1, 0.12, 1)
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 24
+text = "Dialogue"
+autowrap_mode = 3

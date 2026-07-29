@@ -46,9 +46,27 @@ nodes:
     nodeType: Dialogue
     dialogue:
       speakerId: Tomas
-      textKey: 那我们今天也留下一点痕迹吧，不必很大，只要后来的人能看见。
+      textKey: 嗯。
 
   - nodeId: N_08
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Tomas
+      textKey: 我看见那只狐狸了。
+
+  - nodeId: N_09
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Tomas
+      textKey: 它蜷在祷文最后一行下面，尾巴压住了一个被划掉的词。画它的人大概只是等墨水晾干时随手涂了几笔，却让几百年后的我们停下来猜测他当时在想什么。
+
+  - nodeId: N_10
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Tomas
+      textKey: 留下吧。
+
+  - nodeId: N_11
     nodeType: Dialogue
     dialogue:
       speakerId: Elin
@@ -101,6 +119,24 @@ edges:
       logic: All
       terms: []
   - sourceNodeId: N_08
+    targetNodeId: N_09
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_09
+    targetNodeId: N_10
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_10
+    targetNodeId: N_11
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_11
     targetNodeId: N_End
     priority: 0
     condition:

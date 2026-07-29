@@ -36,6 +36,8 @@ Guidelines for integrating `NarrRailSession` into VN-style UI while preserving r
 - Story: `res://sample/stories/dialogue_bubble_demo.nrstory`
 - Features:
   - active bubble follows the current `speakerId`
+  - Elin uses the reusable nine-patch bubble implementation
+  - Tomas uses a procedurally redrawn curved-paper bubble with separate art decorations
   - short lines shrink horizontally
   - long lines stop at a maximum width, wrap, and grow vertically
   - consecutive lines tween between their previous and target width/height

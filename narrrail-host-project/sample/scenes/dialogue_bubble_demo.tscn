@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://c710khr46jy0g" path="res://sample/assets/dialogue_bubble/character_elin.svg" id="3_elin"]
 [ext_resource type="Texture2D" uid="uid://dimch5bbi6ahe" path="res://sample/assets/dialogue_bubble/character_tomas.svg" id="4_tomas"]
 [ext_resource type="PackedScene" uid="uid://58d8v0vd3udu" path="res://sample/scenes/dialogue_bubble/dialogue_bubble.tscn" id="5_bubble"]
+[ext_resource type="PackedScene" path="res://sample/scenes/dialogue_bubble/curved_dialogue_bubble.tscn" id="6_curved_bubble"]
 
 [sub_resource type="StyleBoxFlat" id="StyleTop"]
 content_margin_left = 24.0
@@ -165,6 +166,13 @@ offset_left = 170.0
 offset_top = 105.0
 offset_right = 490.0
 offset_bottom = 275.0
+
+[node name="CurvedDialogueBubble" parent="BubbleLayer" instance=ExtResource("6_curved_bubble")]
+layout_mode = 0
+offset_left = 520.0
+offset_top = 95.0
+offset_right = 880.0
+offset_bottom = 315.0
 
 [node name="Chrome" type="Control" parent="." unique_id=55738417]
 layout_mode = 1

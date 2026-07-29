@@ -10,7 +10,8 @@ const SPEAKER_NAMES := {
 }
 
 @onready var bubble_layer: Control = $BubbleLayer
-@onready var bubble: DialogueBubble = $BubbleLayer/DialogueBubble
+@onready var nine_patch_bubble: DialogueBubble = $BubbleLayer/DialogueBubble
+@onready var curved_bubble: CurvedDialogueBubble = $BubbleLayer/CurvedDialogueBubble
 @onready var left_anchor: Control = $BubbleLayer/LeftSpeechAnchor
 @onready var right_anchor: Control = $BubbleLayer/RightSpeechAnchor
 @onready var left_portrait: TextureRect = $Characters/Elin
@@ -21,13 +22,15 @@ const SPEAKER_NAMES := {
 
 var _session: RefCounted
 var _current_side: StringName = &"left"
+var _active_bubble: Control
 var _ended := false
 var _portrait_tween: Tween
 
 func _ready() -> void:
 	next_button.pressed.connect(_on_next_pressed)
 	resized.connect(_on_resized)
-	bubble.layout_changed.connect(_on_bubble_layout_changed)
+	nine_patch_bubble.layout_changed.connect(_on_bubble_layout_changed)
+	curved_bubble.layout_changed.connect(_on_bubble_layout_changed)
 	_start_story()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -37,6 +40,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _start_story() -> void:
 	_ended = false
+	_active_bubble = null
+	nine_patch_bubble.hide()
+	curved_bubble.hide()
 	next_button.text = "下一句   Space"
 	status_label.text = "NarrRail 对话气泡演示"
 
@@ -62,7 +68,15 @@ func _on_line_changed(payload: Dictionary) -> void:
 	var speaker_id := String(payload.get("speakerId", ""))
 	_current_side = &"right" if speaker_id == "Tomas" else &"left"
 	var speaker_name := String(SPEAKER_NAMES.get(speaker_id, speaker_id))
-	bubble.present(speaker_name, String(payload.get("textKey", "")), _current_side)
+	var content := String(payload.get("textKey", ""))
+	if _current_side == &"right":
+		nine_patch_bubble.hide()
+		_active_bubble = curved_bubble
+		curved_bubble.present(speaker_name, content, _current_side)
+	else:
+		curved_bubble.hide()
+		_active_bubble = nine_patch_bubble
+		nine_patch_bubble.present(speaker_name, content, _current_side)
 	_set_active_speaker(_current_side)
 	next_button.disabled = false
 	status_label.text = "%s 正在说话" % speaker_name
@@ -85,12 +99,15 @@ func _on_next_pressed() -> void:
 		_session.next()
 
 func _position_bubble() -> void:
+	if _active_bubble == null:
+		return
 	var anchor := right_anchor.position if _current_side == &"right" else left_anchor.position
-	var target := anchor - bubble.get_tail_tip_local_position()
+	var tail_tip: Vector2 = _active_bubble.call("get_tail_tip_local_position")
+	var target := anchor - tail_tip
 	var margin := 24.0
-	target.x = clampf(target.x, margin, maxf(margin, bubble_layer.size.x - bubble.size.x - margin))
-	target.y = clampf(target.y, 64.0, maxf(64.0, bubble_layer.size.y - bubble.size.y - 92.0))
-	bubble.position = target
+	target.x = clampf(target.x, margin, maxf(margin, bubble_layer.size.x - _active_bubble.size.x - margin))
+	target.y = clampf(target.y, 64.0, maxf(64.0, bubble_layer.size.y - _active_bubble.size.y - 92.0))
+	_active_bubble.position = target
 
 func _set_active_speaker(side: StringName) -> void:
 	if _portrait_tween != null and _portrait_tween.is_valid():
@@ -102,14 +119,18 @@ func _set_active_speaker(side: StringName) -> void:
 	_portrait_tween.tween_property(right_portrait, "modulate", right_target, 0.16)
 
 func _on_resized() -> void:
-	if bubble.visible:
+	if _active_bubble != null and _active_bubble.visible:
 		call_deferred("_position_bubble")
 
 func _on_bubble_layout_changed() -> void:
+	if _active_bubble == null:
+		return
 	_position_bubble()
-	var body_size := bubble.get_body_size()
-	var target_size := bubble.get_target_body_size()
-	metrics_label.text = "气泡主体  %d × %d px  →  %d × %d px\n宽高正在随文本平滑过渡" % [
+	var body_size: Vector2 = _active_bubble.call("get_body_size")
+	var target_size: Vector2 = _active_bubble.call("get_target_body_size")
+	var bubble_type := "程序曲线" if _active_bubble == curved_bubble else "九宫格"
+	metrics_label.text = "%s气泡  %d × %d px  →  %d × %d px\n艾琳：九宫格 · 托马斯：动态弯曲纸页" % [
+		bubble_type,
 		int(body_size.x),
 		int(body_size.y),
 		int(target_size.x),
