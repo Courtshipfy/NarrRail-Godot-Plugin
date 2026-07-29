@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="430" viewBox="0 0 300 430">
+  <g stroke="#292522" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M52 421 C61 330 79 270 112 241 C132 224 180 226 198 244 C229 277 241 343 248 421 Z" fill="#365b67"/>
+    <path d="M106 260 L77 349 L119 339 L141 421" fill="#4f7880"/>
+    <path d="M197 262 L224 350 L184 339 L160 421" fill="#294954"/>
+    <path d="M101 127 C101 77 123 49 160 48 C196 47 220 78 220 128 L216 191 C214 220 190 242 160 242 C129 242 106 220 104 191 Z" fill="#c99569"/>
+    <path d="M94 116 C88 71 108 35 145 23 C187 10 225 36 230 80 C232 101 224 121 217 140 C213 104 197 82 178 67 C155 79 128 91 94 91 Z" fill="#3b302b"/>
+    <path d="M111 153 C122 147 135 148 144 154" fill="none"/>
+    <path d="M174 154 C185 148 197 150 204 157" fill="none"/>
+    <circle cx="132" cy="164" r="4" fill="#29211d" stroke="none"/>
+    <circle cx="191" cy="165" r="4" fill="#29211d" stroke="none"/>
+    <path d="M158 165 L153 189 L165 189" fill="none"/>
+    <path d="M135 205 C149 197 173 198 187 207" fill="none"/>
+    <path d="M111 236 C128 262 187 264 205 238 L219 271 C180 295 126 291 91 270 Z" fill="#d8c08d"/>
+    <path d="M75 391 C121 369 188 373 232 395" fill="none" stroke="#7da1a4" stroke-width="4"/>
+  </g>
+</svg>

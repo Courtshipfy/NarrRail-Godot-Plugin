@@ -29,6 +29,24 @@ Guidelines for integrating `NarrRailSession` into VN-style UI while preserving r
   - speaker + body text presentation
   - dynamic choice buttons
 
+### `dialogue_bubble_demo.gd`
+
+- Purpose: presentation-focused two-speaker sample driven by `NarrRailSession`
+- Scene: `res://sample/scenes/dialogue_bubble_demo.tscn`
+- Story: `res://sample/stories/dialogue_bubble_demo.nrstory`
+- Features:
+  - active bubble follows the current `speakerId`
+  - short lines shrink horizontally
+  - long lines stop at a maximum width, wrap, and grow vertically
+  - consecutive lines tween between their previous and target width/height
+  - the bubble position is recomputed during resizing so the tail stays on the speaker anchor
+  - independent left/right tails point toward the active speaker
+  - reusable nine-patch bubble component at `res://sample/scenes/dialogue_bubble/dialogue_bubble.tscn`
+  - subtle appearance animation and active-speaker portrait emphasis
+
+The sample art is intentionally replaceable. See
+`res://sample/assets/dialogue_bubble/ASSET_GUIDE.md` for nine-patch and tail handoff requirements.
+
 ## What UI Should Avoid
 
 - hardcoding node progression rules

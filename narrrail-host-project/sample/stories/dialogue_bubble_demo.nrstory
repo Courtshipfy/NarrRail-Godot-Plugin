@@ -1,0 +1,108 @@
+meta:
+  schemaVersion: 1
+  storyId: dialogue_bubble_demo
+  entryNodeId: N_01
+
+variables: []
+
+nodes:
+  - nodeId: N_01
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Elin
+      textKey: 早。
+
+  - nodeId: N_02
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Elin
+      textKey: 我带来了那本旧册页。
+
+  - nodeId: N_03
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Elin
+      textKey: 昨夜抄写员把它送来时，我本来只想核对最后一页，可上面的墨迹淡得像冬天的日光，边角却留下了许多不同年代的手印。
+
+  - nodeId: N_04
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Elin
+      textKey: 你看这里。
+
+  - nodeId: N_05
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Elin
+      textKey: 有人在祷文旁画了一只睡着的狐狸，也有人认真改正了前人的拼写，还有人只是在页脚试了试新削的笔尖。书里没有写他们的名字，可这些细小的痕迹让他们仍然活在书页之间。
+
+  - nodeId: N_06
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Elin
+      textKey: 就是这样。
+
+  - nodeId: N_07
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Tomas
+      textKey: 那我们今天也留下一点痕迹吧，不必很大，只要后来的人能看见。
+
+  - nodeId: N_08
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Elin
+      textKey: 好。
+
+  - nodeId: N_End
+    nodeType: End
+
+edges:
+  - sourceNodeId: N_01
+    targetNodeId: N_02
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_02
+    targetNodeId: N_03
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_03
+    targetNodeId: N_04
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_04
+    targetNodeId: N_05
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_05
+    targetNodeId: N_06
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_06
+    targetNodeId: N_07
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_07
+    targetNodeId: N_08
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: N_08
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
